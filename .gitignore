@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.webloc
+
+.DS_Store
+
+camect-py/
