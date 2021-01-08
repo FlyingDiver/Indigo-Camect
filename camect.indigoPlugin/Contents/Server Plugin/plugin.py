@@ -4,7 +4,9 @@
 
 import logging
 import indigo
-import threading
+import json
+
+from camect import Camect
 
 ################################################################################
 class Plugin(indigo.PluginBase):
@@ -29,20 +31,56 @@ class Plugin(indigo.PluginBase):
     def startup(self):
         self.logger.info(u"Starting Camect")
         
+        self.camects = {}
+        self.triggers = {}
+        
 
     def shutdown(self):
         self.logger.info(u"Stopping Camect")
 
 
     def deviceStartComm(self, device):
-        self.logger.info(u"{}: Starting Device".format(device.name))
 
-
+        if device.deviceTypeId == "camect":
+            self.logger.info(u"{}: Starting Device".format(device.name))
+            self.camects[device.id] = Camect(device)
+            device.updateStateOnServer(key="status", value="None")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+        else:
+            self.logger.warning(u"{}: deviceStartComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
+            
     def deviceStopComm(self, device):
-        self.logger.info(u"{}: Stopping Device".format(device.name))
-
-
         
+        if device.deviceTypeId == "camect":
+            self.logger.info(u"{}: Stopping Device".format(device.name))
+            del self.camects[device.id]
+            device.updateStateOnServer(key="status", value="None")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+        else:
+            self.logger.warning(u"{}: deviceStopComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
+
+
+    def processReceivedEvent(self, devID, event):
+        device = indigo.devices[devID]
+        self.logger.debug(u"{}: Event JSON: {}".format(device.name, event))
+        device.updateStateOnServer(key='last_event', value=event)	
+        
+        try:
+            evt = json.loads(event)
+        except Exception as err:
+            self.logger.error("Invalid JSON '{}': {}".format(event, err))
+             
+        # Now do any triggers
+
+        for trigger in self.triggers.values():
+            if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
+                if trigger.pluginTypeId == "eventReceived":
+                    indigo.trigger.execute(trigger)
+                                        
+                else:
+                    self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
+    
+
   
     ########################################
     # Trigger (Event) handling 
@@ -80,19 +118,25 @@ class Plugin(indigo.PluginBase):
  
 
     ########################################
-    # This routine will validate the device configuration dialog when the user attempts to save the data
+    # Plugin Actions object callbacks
     ########################################
 
-    def validateDeviceConfigUi(self, valuesDict, typeId, devId):
-        self.logger.debug(u"validateDeviceConfigUi, devId={}, typeId={}, valuesDict = {}".format(devId, typeId, valuesDict))
-        errorMsgDict = indigo.Dict()
-        
-        return True        
+    def pickCamect(self, filter=None, valuesDict=None, typeId=0, targetId=0):
+        if "Any" in filter:
+            retList = [("-1","- Any Camect -")]
+        else:
+            retList = []
+        for camectID in self.camects:
+            device = indigo.devices[int(camectID)]
+            retList.append((device.id, device.name))
+        retList.sort(key=lambda tup: tup[1])
+        return retList
 
 
-    ################################################################################
-    #
-    # UI List methods
-    #
-    ################################################################################
+    def sendTextAction(self, pluginAction):
+        text = pluginAction.props["text"]
+        message = indigo.activePlugin.substitute(text)
+        self.logger.debug(u"sendTextAction = {}".format(message))
 
+        camect = self.camects[pluginAction.deviceId]
+        camect.sendText(message)

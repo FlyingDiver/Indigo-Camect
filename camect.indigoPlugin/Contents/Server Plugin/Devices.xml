@@ -1,5 +1,35 @@
 <?xml version="1.0"?>
 <Devices>
+    <Device id="camect" type="custom">
+        <Name>Camect NVR</Name>
+        <ConfigUI>
+            <Field id="address" type="textfield"  defaultValue="" tooltip="Enter IP address or Hostname of device.">
+				<Label>IP Address or Hostname:</Label>
+			</Field>
+			<Field id="port" type="textfield" defaultValue="443" tooltip="Port number">
+				<Label>Port:</Label>
+			</Field>
+			<Field id="username" type="textfield" defaultValue="admin" tooltip="User Name">
+				<Label>User Name:</Label>
+			</Field>
+			<Field id="password" type="textfield" defaultValue="" tooltip="Password">
+				<Label>Password:</Label>
+			</Field>
+        </ConfigUI>
+        <States>
+            <State id="status" readonly="true">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Status</TriggerLabel>
+                <ControlPageLabel>Status</ControlPageLabel>
+            </State>
+            <State id="last_event">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event</TriggerLabel>
+                <ControlPageLabel>Last Event</ControlPageLabel>
+            </State>
+        </States>
+        <UiDisplayStateId>status</UiDisplayStateId>
+     </Device>
 </Devices>
  
  

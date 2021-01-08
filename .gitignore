@@ -133,3 +133,5 @@ dmypy.json
 .DS_Store
 
 camect-py/
+
+websocket_client-0.57.0/
