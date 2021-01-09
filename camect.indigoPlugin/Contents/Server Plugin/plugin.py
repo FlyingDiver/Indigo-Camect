@@ -132,11 +132,10 @@ class Plugin(indigo.PluginBase):
         retList.sort(key=lambda tup: tup[1])
         return retList
 
+    ################################################################################
+    # For initial testing only
+    ################################################################################
+                  
 
     def sendTextAction(self, pluginAction):
-        text = pluginAction.props["text"]
-        message = indigo.activePlugin.substitute(text)
-        self.logger.debug(u"sendTextAction = {}".format(message))
-
-        camect = self.camects[pluginAction.deviceId]
-        camect.sendText(message)
+        self.camects[pluginAction.deviceId].sendText(pluginAction.props["text"])

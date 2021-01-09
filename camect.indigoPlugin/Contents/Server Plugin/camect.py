@@ -38,7 +38,7 @@ class Camect:
 
         self._api_prefix = "https://{}:{}/api/".format(self.address, self.port)
 #        self._ws_uri = "wss://{}:{}/api/event_ws".format(self.address, self.port)
-        self._ws_uri = "wss://{}:{}/".format(self.address, self.port)
+        self._ws_uri = "ws://{}:{}/".format(self.address, self.port)
         
         # Make sure it connects.
 #        self.get_info()
@@ -56,7 +56,6 @@ class Camect:
                     device.updateStateOnServer(key="status", value="Disconnected")
                     device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
                     break
-                self.logger.threaddebug("websocket received frame: {}".format(frame))
                     
                 if not frame:
                     device.updateStateOnServer(key="status", value="Invalid Frame")
@@ -74,14 +73,19 @@ class Camect:
                     self.ws.pong(frame.data)
                     continue
 
+                self.logger.threaddebug("websocket received event: {}".format(frame.data))
                 indigo.activePlugin.processReceivedEvent(self.deviceID, frame.data)
 
             self.logger.error("recv_ws loop ended")
                     
-        self.logger.info("Connecting to '{}'".format(self._ws_uri))
-        authorization = "Basic " + self._authorization()
+        self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
+        authorization = "Basic " + self.authorization()
         self.ws = websocket.create_connection(self._ws_uri, headers={"Authorization": authorization}, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
-        self.thread = threading.Thread(target=recv_ws).start
+#        self.ws = websocket.create_connection(self._ws_uri, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
+#        self.ws = websocket.create_connection(self._ws_uri)
+        self.logger.debug("{}: Connection OK".format(device.name))
+        self.thread = threading.Thread(target=recv_ws).start()
+        self.logger.debug("{}: Thread OK".format(device.name))
         device.updateStateOnServer(key="status", value="Connected")
         device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 
@@ -96,7 +100,7 @@ class Camect:
     ################################################################################
                   
     def sendText(self, message):
-        self.logger.debug("sendText: {}".format(message))
+#        self.logger.debug("sendText: {}".format(message))
         self.ws.send(message)
 
 
@@ -110,7 +114,7 @@ class Camect:
     def del_event_listener(self, cb):
         self._evt_loop.call_soon_threadsafe(self.evt_listeners_.remove, cb)
 
-    def _authorization(self):
+    def authorization(self):
         return base64.b64encode("{}:{}".format(self.username, self.password).encode()).decode()
 
     def get_id(self):
@@ -144,7 +148,7 @@ class Camect:
     def get_local_https_url(self, path):
         info = self.get_info()
         if info:
-            return info["local_https_url"] + path + "?X-AUTHORIZATION=" + self._authorization()
+            return info["local_https_url"] + path + "?X-AUTHORIZATION=" + self.authorization()
         return ""
 
     # The returned URL needs internet and may not work in certain network environment.
@@ -153,7 +157,7 @@ class Camect:
 
     # The returned URL has invalid TLS certificate.
     def get_unsecure_https_url(self, path):
-        return "https://{}/{}?X-AUTHORIZATION={}".format(self._server_addr, path, self._authorization())
+        return "https://{}/{}?X-AUTHORIZATION={}".format(self._server_addr, path, self.authorization())
 
     # The returned URL has invalid TLS certificate.
     def get_unsecure_websocket_url(self):
