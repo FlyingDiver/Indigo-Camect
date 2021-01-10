@@ -132,10 +132,3 @@ class Plugin(indigo.PluginBase):
         retList.sort(key=lambda tup: tup[1])
         return retList
 
-    ################################################################################
-    # For initial testing only
-    ################################################################################
-                  
-
-    def sendTextAction(self, pluginAction):
-        self.camects[pluginAction.deviceId].sendText(pluginAction.props["text"])

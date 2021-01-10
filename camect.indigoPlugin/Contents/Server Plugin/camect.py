@@ -37,82 +37,75 @@ class Camect:
         device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
 
         self._api_prefix = "https://{}:{}/api/".format(self.address, self.port)
-#        self._ws_uri = "wss://{}:{}/api/event_ws".format(self.address, self.port)
-        self._ws_uri = "ws://{}:{}/".format(self.address, self.port)
+        self._ws_uri = "wss://{}:{}/api/event_ws".format(self.address, self.port)
         
         # Make sure it connects.
-#        self.get_info()
+        self.logger.debug(u"info =\n{}".format(self.get_info()))
 
     ################################################################################
     # Minimal Websocket Client
     ################################################################################
         
         def recv_ws():
+
+            self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
+            authorization = "Basic " + self.authorization()
+
             while True:
-                try:
-                    frame = self.ws.recv_frame()
-                except websocket.WebSocketException as err:
-                    self.logger.error("WebSocketException: {}".format(err))
-                    device.updateStateOnServer(key="status", value="Disconnected")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
-                    break
-                    
-                if not frame:
-                    device.updateStateOnServer(key="status", value="Invalid Frame")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
-                    raise websocket.WebSocketException("Not a valid frame %s" % frame)
-                    
-                if frame.opcode == websocket.ABNF.OPCODE_CLOSE:
-                    self.logger.error("WebSocket Closed")
-                    device.updateStateOnServer(key="status", value="Disconnected")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
-                    break
 
-                elif frame.opcode == websocket.ABNF.OPCODE_PING:
-                    self.logger.threaddebug("WebSocket Ping")
-                    self.ws.pong(frame.data)
-                    continue
+                self.ws = websocket.create_connection(self._ws_uri, header={'Authorization': authorization}, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
+                self.logger.debug("{}: Connection OK".format(device.name))
+                device.updateStateOnServer(key="status", value="Connected")
+                device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 
-                self.logger.threaddebug("websocket received event: {}".format(frame.data))
-                indigo.activePlugin.processReceivedEvent(self.deviceID, frame.data)
-
-            self.logger.error("recv_ws loop ended")
+                while True:
+                    try:
+                        frame = self.ws.recv_frame()
+                    except websocket.WebSocketException as err:
+                        self.logger.error("WebSocketException: {}".format(err))
+                        break
                     
-        self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
-        authorization = "Basic " + self.authorization()
-        self.ws = websocket.create_connection(self._ws_uri, headers={"Authorization": authorization}, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
-#        self.ws = websocket.create_connection(self._ws_uri, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
-#        self.ws = websocket.create_connection(self._ws_uri)
-        self.logger.debug("{}: Connection OK".format(device.name))
+                    if not frame:
+                        device.updateStateOnServer(key="status", value="Invalid Frame")
+                        device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                        raise websocket.WebSocketException("Not a valid frame %s" % frame)
+                    
+                    if frame.opcode == websocket.ABNF.OPCODE_CLOSE:
+                        self.logger.error("WebSocket Closed")
+                        device.updateStateOnServer(key="status", value="Disconnected")
+                        device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                        break
+
+                    elif frame.opcode == websocket.ABNF.OPCODE_PING:
+                        self.logger.threaddebug("WebSocket Ping")
+                        self.ws.pong(frame.data)
+                        continue
+
+                    self.logger.threaddebug("websocket received event: {}".format(frame.data))
+                    indigo.activePlugin.processReceivedEvent(self.deviceID, frame.data)
+
+                self.logger.debug("recv_ws inner loop ended")
+                
+            self.logger.error("recv_ws outer loop ended")
+            device.updateStateOnServer(key="status", value="Disconnected")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                    
+        # start up the websocket receiver
+        
         self.thread = threading.Thread(target=recv_ws).start()
         self.logger.debug("{}: Thread OK".format(device.name))
-        device.updateStateOnServer(key="status", value="Connected")
-        device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 
 
     def __del__(self):
+        self.runThread = False
+        self.ws.close()
         device = indigo.devices[self.deviceID]
         device.updateStateOnServer(key="status", value="Not Connected")
         device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)      
 
     ################################################################################
-    # For initial testing only
-    ################################################################################
-                  
-    def sendText(self, message):
-#        self.logger.debug("sendText: {}".format(message))
-        self.ws.send(message)
-
-
-    ################################################################################
     # API Functions
     ################################################################################
-
-    def add_event_listener(self, cb):
-        self._evt_loop.call_soon_threadsafe(self.evt_listeners_.append, cb)
-
-    def del_event_listener(self, cb):
-        self._evt_loop.call_soon_threadsafe(self.evt_listeners_.remove, cb)
 
     def authorization(self):
         return base64.b64encode("{}:{}".format(self.username, self.password).encode()).decode()
