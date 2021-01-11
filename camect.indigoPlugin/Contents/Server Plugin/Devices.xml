@@ -27,6 +27,31 @@
                 <TriggerLabel>Last Event</TriggerLabel>
                 <ControlPageLabel>Last Event</ControlPageLabel>
             </State>
+           <State id="name">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Name</TriggerLabel>
+                <ControlPageLabel>Name</ControlPageLabel>
+            </State>
+            <State id="cloud_url">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Cloud URL</TriggerLabel>
+                <ControlPageLabel>Cloud URL</ControlPageLabel>
+            </State>
+            <State id="local_https_url">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Local URL</TriggerLabel>
+                <ControlPageLabel>Local URL</ControlPageLabel>
+            </State>
+            <State id="mode">
+                <ValueType >String</ValueType>
+                <TriggerLabel>mode</TriggerLabel>
+                <ControlPageLabel>Mode</ControlPageLabel>
+            </State>
+            <State id="id">
+                <ValueType >String</ValueType>
+                <TriggerLabel>ID</TriggerLabel>
+                <ControlPageLabel>ID</ControlPageLabel>
+            </State>
         </States>
         <UiDisplayStateId>status</UiDisplayStateId>
      </Device>

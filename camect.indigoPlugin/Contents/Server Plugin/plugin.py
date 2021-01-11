@@ -32,8 +32,9 @@ class Plugin(indigo.PluginBase):
         self.logger.info(u"Starting Camect")
         
         self.camects = {}
+        self.camect_cameras = {}
+        self.camect_info = {}
         self.triggers = {}
-        
 
     def shutdown(self):
         self.logger.info(u"Stopping Camect")
@@ -46,6 +47,26 @@ class Plugin(indigo.PluginBase):
             self.camects[device.id] = Camect(device)
             device.updateStateOnServer(key="status", value="None")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+            
+            # Make sure it connects.
+            info = self.camects[device.id].get_info()
+            self.camect_info[device.id] = info
+            self.logger.debug(u"Camect info:\n{}".format(info))
+        
+            key_value_list = [
+                  {'key':'name',            'value':info['name']},
+                  {'key':'cloud_url',       'value':info['cloud_url']},
+                  {'key':'local_https_url', 'value':info['local_https_url']},
+                  {'key':'mode',            'value':info['mode']},
+                  {'key':'id',              'value':info['id']}
+            ]
+            device.updateStatesOnServer(key_value_list)   
+
+            self.camect_cameras[device.id] = self.camects[device.id].list_cameras()
+            self.logger.debug(u"Known Cameras:")
+            for cam in self.camect_cameras[device.id]:
+                self.logger.debug("{}: {}".format(cam["name"], cam))
+
         else:
             self.logger.warning(u"{}: deviceStartComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
             
@@ -63,7 +84,7 @@ class Plugin(indigo.PluginBase):
     def processReceivedEvent(self, devID, event):
         device = indigo.devices[devID]
         self.logger.debug(u"{}: Event JSON: {}".format(device.name, event))
-        device.updateStateOnServer(key='last_event', value=event)	
+        device.updateStateOnServer(key='last_event', value=event)
         
         try:
             evt = json.loads(event)
@@ -116,12 +137,12 @@ class Plugin(indigo.PluginBase):
             self.indigo_log_handler.setLevel(self.logLevel)
             self.logger.debug(u"logLevel = {}".format(self.logLevel))
  
-
-    ########################################
-    # Plugin Actions object callbacks
-    ########################################
-
+    def validateEventConfigUi(self, valuesDict, typeId, eventId):
+        self.logger.debug(u"validateEventConfigUi typeId = {}, eventId = {}, valuesDict = {}".format(typeId, eventId, valuesDict))
+        return (True, valuesDict)
+    
     def pickCamect(self, filter=None, valuesDict=None, typeId=0, targetId=0):
+        self.logger.debug(u"pickCamect typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Camect -")]
         else:
@@ -131,4 +152,36 @@ class Plugin(indigo.PluginBase):
             retList.append((device.id, device.name))
         retList.sort(key=lambda tup: tup[1])
         return retList
+
+    def pickCamera(self, filter=None, valuesDict=None, typeId=0, targetId=0):
+        self.logger.debug(u"pickCamera typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
+        if "Any" in filter:
+            retList = [("-1","- Any Camera -")]
+        else:
+            retList = []
+        try:
+            for cam in self.camect_cameras[int(valuesDict['camectID'])]:
+                retList.append((cam["id"], cam["name"]))
+        except:
+            pass
+        retList.sort(key=lambda tup: tup[1])
+        return retList
+
+    def pickObject(self, filter=None, valuesDict=None, typeId=0, targetId=0):
+        self.logger.debug(u"pickObject typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
+        if "Any" in filter:
+            retList = [("-1","- Any Object -")]
+        else:
+            retList = []
+        try:
+            for objName in self.camect_info[int(valuesDict['camectID'])]['object_name']:
+                retList.append((objName, objName))
+        except:
+            pass
+        retList.sort(key=lambda tup: tup[1])
+        return retList
+
+    # doesn't do anything, just needed to force other menus to dynamically refresh
+    def menuChanged(self, valuesDict, typeId, devId):
+        return valuesDict
 
