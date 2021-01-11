@@ -45,41 +45,45 @@ class Camect:
         
         def recv_ws():
 
+            self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
+            authorization = "Basic " + self.authorization()
+
             while True:
 
-                self.logger.debug("{}: Thread: Connecting to '{}'".format(device.name, self._ws_uri))
-                self.ws = websocket.create_connection(self._ws_uri, header={'Authorization': "Basic " + self.authorization()}, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
-                self.logger.debug("{}: Thread: Connection OK".format(device.name))
+                self.ws = websocket.create_connection(self._ws_uri, header={'Authorization': authorization}, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
+                self.logger.debug("{}: Connection OK".format(device.name))
                 device.updateStateOnServer(key="status", value="Connected")
                 device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 
-                self.logger.debug("{}: Thread: Waiting for event...".format(device.name))
-                try:
-                    frame = self.ws.recv_frame()
-                except websocket.WebSocketException as err:
-                    self.logger.debug("{}: Thread: WebSocketException: {}".format(device.name, err))
-                    continue
-                
-                if not frame:
-                    device.updateStateOnServer(key="status", value="Invalid Frame")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
-                    raise websocket.WebSocketException("{}: Thread: Not a valid frame {}".format(device.name, frame))
-                
-                elif frame.opcode == websocket.ABNF.OPCODE_CLOSE:
-                    self.logger.error("{}: Thread: WebSocket Closed".format(device.name))
-                    device.updateStateOnServer(key="status", value="Disconnected")
-                    device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                while True:
+                    try:
+                        frame = self.ws.recv_frame()
+                    except websocket.WebSocketException as err:
+                        self.logger.error("WebSocketException: {}".format(err))
+                        break
+                    
+                    if not frame:
+                        device.updateStateOnServer(key="status", value="Invalid Frame")
+                        device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                        raise websocket.WebSocketException("Not a valid frame %s" % frame)
+                    
+                    if frame.opcode == websocket.ABNF.OPCODE_CLOSE:
+                        self.logger.error("WebSocket Closed")
+                        device.updateStateOnServer(key="status", value="Disconnected")
+                        device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+                        break
 
-                elif frame.opcode == websocket.ABNF.OPCODE_PING:
-                    self.logger.threaddebug("{}: WebSocket Ping".format(device.name))
-                    self.ws.pong(frame.data)
+                    elif frame.opcode == websocket.ABNF.OPCODE_PING:
+                        self.logger.threaddebug("WebSocket Ping")
+                        self.ws.pong(frame.data)
+                        continue
 
-                else:
                     self.logger.threaddebug("websocket received event: {}".format(frame.data))
                     indigo.activePlugin.processReceivedEvent(self.deviceID, frame.data)
 
+                self.logger.debug("recv_ws inner loop ended")
                 
-            self.logger.debug("{}: recv_ws outer loop ended".format(device.name))
+            self.logger.error("recv_ws outer loop ended")
             device.updateStateOnServer(key="status", value="Disconnected")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
 
