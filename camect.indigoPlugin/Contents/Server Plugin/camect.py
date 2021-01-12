@@ -6,7 +6,6 @@ import logging
 import ssl
 import sys
 import time
-import urllib3
 
 import requests
 import websocket
@@ -14,7 +13,7 @@ import threading
 
 import indigo
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 class Error(Exception):
     pass
@@ -43,7 +42,7 @@ class Camect:
         # Minimal Websocket Client
         ################################################################################
         
-        def recv_ws():
+        def ws_client():
 
             self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
             authorization = "Basic " + self.authorization()
@@ -52,26 +51,37 @@ class Camect:
                     header={'Authorization': authorization},
                     on_message = on_message,
                     on_error = on_error,
-                    on_close = on_close)
+                    on_close = on_close,
+                    on_open = on_open)
                 
+            self.logger.debug("{}: WebSocketApp created, starting run_forever()".format(device.name))
             ws.run_forever(ping_interval=5, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
  
         def on_message(ws, message):
-            self.logger.debug("{}: websocket received event: {}".format(device.name, message))
+            self.logger.threaddebug("{}: websocket on_message: {}".format(device.name, message))
             indigo.activePlugin.processReceivedEvent(self.deviceID, message)
 
         def on_error(ws, error):
-            self.logger.debug("{}: websocket error: {}".format(device.name, error))
+            self.logger.debug("{}: websocket on_error: {}".format(device.name, error))
+            device.updateStateOnServer(key="status", value="Error")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+
+        def on_open(ws):
+            self.logger.debug("{}: websocket on_open".format(device.name))
+            device.updateStateOnServer(key="status", value="Connected")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
 
         def on_close(ws):
-            self.logger.debug("{}: websocket closed: {}".format(device.name, error))
-           
+            self.logger.debug("{}: websocket on_close".format(device.name))
+            device.updateStateOnServer(key="status", value="Disconnected")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+          
         ################################################################################
                     
         # start up the websocket receiver thread
         
         self.logger.debug("{}: Starting websocket thread".format(device.name))
-        self.thread = threading.Thread(target=recv_ws).start()
+        self.thread = threading.Thread(target=ws_client).start()
 
 
     def __del__(self):

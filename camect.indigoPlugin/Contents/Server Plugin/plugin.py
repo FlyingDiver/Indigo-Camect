@@ -6,6 +6,9 @@ import logging
 import indigo
 import json
 
+import requests
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
 from camect import Camect
 
 ################################################################################
@@ -81,15 +84,24 @@ class Plugin(indigo.PluginBase):
             self.logger.warning(u"{}: deviceStopComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
 
 
-    def processReceivedEvent(self, devID, event):
+    def processReceivedEvent(self, devID, event_json):
         device = indigo.devices[devID]
-        self.logger.debug(u"{}: Event JSON: {}".format(device.name, event))
-        device.updateStateOnServer(key='last_event', value=event)
+        self.logger.debug(u"{}: Event JSON: {}".format(device.name, event_json))
         
         try:
-            evt = json.loads(event)
+            event = json.loads(event_json)
         except Exception as err:
-            self.logger.error("Invalid JSON '{}': {}".format(event, err))
+            self.logger.error("Invalid JSON '{}': {}".format(event_json, err))
+
+        key_value_list = [
+              {'key':'last_event',          'value':event_json},
+              {'key':'last_event_type',     'value':event['type']},
+              {'key':'last_event_desc',     'value':event['desc']},
+              {'key':'last_event_url',      'value':event['url']},
+              {'key':'last_event_cam_id',   'value':event['cam_id']},
+              {'key':'last_event_detected', 'value':' '.join(event['detected_obj'])}
+        ]
+        device.updateStatesOnServer(key_value_list)   
              
         # Now do any triggers
 
