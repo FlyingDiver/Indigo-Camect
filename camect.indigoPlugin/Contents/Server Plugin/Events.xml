@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Events>
-    <Event id="eventReceived">
-        <Name>Any Event Received</Name>
+    <Event id="eventReceived" deviceFilter="self">
+        <Name>Event Received</Name>
 		<ConfigUI>
             <Field id="camectID" type="menu">
                 <Label>Select Camect:</Label>

@@ -1,3 +1,46 @@
 <?xml version="1.0"?>
 <Actions>
+	<Action id="disableAlerts" deviceFilter="self.camect">
+		<Name>Disable Alerts</Name>
+		<CallbackMethod>disableAlertsCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="cameraID" type="menu">
+                <Label>Select Camera:</Label>
+                <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
+            <Field id="reason" type="textfield">
+                <Label>Reason:</Label>
+            </Field>
+			<Field id="reasonNote1" type="label" fontSize="small" fontColor="darkgray">
+				<Label>Reason can be any text string.  The same string must be used to re-enable alerts</Label>
+			</Field>
+        </ConfigUI>
+	</Action>
+	<Action id="enableAlerts" deviceFilter="self.camect">
+		<Name>Enable Alerts</Name>
+		<CallbackMethod>EnableAlertsCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="cameraID" type="menu">
+                <Label>Select Camera:</Label>
+                <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
+            <Field id="reason" type="textfield">
+                <Label>Reason:</Label>
+            </Field>
+			<Field id="reasonNote1" type="label" fontSize="small" fontColor="darkgray">
+				<Label>The Reason string must be the same as was used to disable alerts.</Label>
+			</Field>
+        </ConfigUI>
+	</Action>
+	<Action id="setMode" deviceFilter="self.camect">
+		<Name>Set Mode</Name>
+		<CallbackMethod>setModeCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="mode" type="textfield">
+                <Label>Mode:</Label>
+            </Field>
+        </ConfigUI>
+	</Action>
 </Actions>

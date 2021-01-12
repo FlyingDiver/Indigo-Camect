@@ -53,6 +53,9 @@ class Plugin(indigo.PluginBase):
             
             # Make sure it connects.
             info = self.camects[device.id].get_info()
+            if not info:
+                return
+                            
             self.camect_info[device.id] = info
             self.logger.debug(u"Camect info:\n{}".format(info))
         
@@ -106,12 +109,14 @@ class Plugin(indigo.PluginBase):
         # Now do any triggers
 
         for trigger in self.triggers.values():
-            if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
-                if trigger.pluginTypeId == "eventReceived":
+            if trigger.pluginTypeId == "eventReceived":
+                if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id))     and \
+                   (trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id'])    and \
+                   (trigger.pluginProps["object"] == "-1")   or (trigger.pluginProps["object"]   in event['detected_obj']):
                     indigo.trigger.execute(trigger)
                                         
-                else:
-                    self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
+            else:
+                self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
     
 
   
@@ -133,6 +138,18 @@ class Plugin(indigo.PluginBase):
     ########################################
     # Menu Methods
     ########################################
+
+
+    ########################################
+    # Plugin Actions object callbacks (pluginAction is an Indigo plugin action instance)
+    ########################################
+
+    def disableAlertsCommand(self, pluginAction, dev):
+        self.logger.debug(u"{}: disableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
+
+
+    def enableAlertsCommand(self, pluginAction, dev):
+        self.logger.debug(u"{}: enableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
 
 
 
@@ -169,6 +186,8 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"pickCamera typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Camera -")]
+        elif "All" in filter:
+            retList = [("-1","- All Cameras -")]
         else:
             retList = []
         try:
@@ -183,6 +202,8 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"pickObject typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Object -")]
+        elif "All" in filter:
+            retList = [("-1","- All Objects -")]
         else:
             retList = []
         try:

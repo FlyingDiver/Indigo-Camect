@@ -79,7 +79,10 @@
             </State>
         </States>
         <UiDisplayStateId>status</UiDisplayStateId>
-     </Device>
+    </Device>
+    <Device id="camera" type="custom">
+        <Name>Camect Camera</Name>
+    </Device>
 </Devices>
  
  

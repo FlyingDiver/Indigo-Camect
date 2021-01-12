@@ -1,3 +1,4 @@
+# Based on https://github.com/camect/camect-py
 # Modified from the original to work with Python 2 and Indigo
 
 import base64
@@ -14,9 +15,6 @@ import threading
 import indigo
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
-
-class Error(Exception):
-    pass
 
 ########################################
 class Camect:
@@ -97,74 +95,30 @@ class Camect:
     def authorization(self):
         return base64.b64encode("{}:{}".format(self.username, self.password).encode()).decode()
 
-    def get_id(self):
-        info = self.get_info()
-        if info:
-            return info["id"]
-        return ""
-
-    def get_name(self):
-        info = self.get_info()
-        if info:
-            return info["name"]
-        return ""
-
-    def get_mode(self):
-        info = self.get_info()
-        if info:
-            return info["mode"]
-        return ""
-
-    def get_cloud_url(self, path):
-        info = self.get_info()
-        if info:
-            return info["cloud_url"] + path
-        return ""
-
-    def get_cloud_websocket_url(self, expiration_secs = 24 * 3600):
-        return self.get_cloud_url("webrtc/ws").replace("https://", "wss://") + '?access_token=' + self.generate_access_token(expiration_secs)
-
-    # The returned URL needs internet and may not work in certain network environment.
-    def get_local_https_url(self, path):
-        info = self.get_info()
-        if info:
-            return info["local_https_url"] + path + "?X-AUTHORIZATION=" + self.authorization()
-        return ""
-
-    # The returned URL needs internet and may not work in certain network environment.
-    def get_local_websocket_url(self):
-        return self.get_local_https_url("webrtc/ws").replace("https://", "wss://")
-
-    # The returned URL has invalid TLS certificate.
-    def get_unsecure_https_url(self, path):
-        return "https://{}/{}?X-AUTHORIZATION={}".format(self._server_addr, path, self.authorization())
-
-    # The returned URL has invalid TLS certificate.
-    def get_unsecure_websocket_url(self):
-        return self.get_unsecure_https_url("webrtc/ws").replace("https://", "wss://")
-
     def get_info(self):
         resp = requests.get(self._api_prefix + "GetHomeInfo", verify=False, auth=(self.username, self.password))
         json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
+            device = indigo.devices[self.deviceID]
+            self.logger.warning("{}: Error on GetHomeInfo [{}]({})".format(device.name, resp.status_code, resp.json()["err_msg"]))
+            return None
         return json
 
-    def set_name(self, name):
-        resp = requests.get(self._api_prefix + "SetHomeName", verify=False, auth=(self.username, self.password), params={"Name": name})
-        if resp.status_code != 200:
-            raise Error("Failed to set home name to '{}': [{}]({})".format(name, resp.status_code, resp.json()["err_msg"]))
 
     def set_mode(self, mode):
         resp = requests.get(self._api_prefix + "SetOperationMode", verify=False, auth=(self.username, self._assword), params={"Mode": mode})
         if resp.status_code != 200:
-            raise Error("Failed to set operation mode to '{}': [{}]({})".format(mode, resp.status_code, resp.json()["err_msg"]))
-
+            device = indigo.devices[self.deviceID]
+            self.logger.warning("{}: Failed to set operation mode to '{}': [{}]({})".format(device.name, mode, resp.status_code, resp.json()["err_msg"]))
+            return None
+            
     def list_cameras(self):
         resp = requests.get(self._api_prefix + "ListCameras", verify=False, auth=(self.username, self.password))
         json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to get home info: [{}]({})".format(resp.status_code, json["err_msg"]))
+            device = indigo.devices[self.deviceID]
+            self.logger.warning("{}: Error on ListCameras [{}]({})".format(device.name, resp.status_code, resp.json()["err_msg"]))
+            return None
         return json["camera"]
 
     def snapshot_camera(self, cam_id, width = 0, height = 0):
@@ -173,24 +127,10 @@ class Camect:
             params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
         json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to snapshot camera: [{}]({})".format(resp.status_code, json["err_msg"]))
+            device = indigo.devices[self.deviceID]
+            self.logger.warning("{}: Error on SnapshotCamera [{}]({})".format(device.name, resp.status_code, resp.json()["err_msg"]))
+            return None
         return base64.b64decode(json["jpeg_data"])
-
-    def generate_access_token(self, expiration_secs = 24 * 3600):
-        """Generates a token that could be used to establish P2P connection with home server w/o
-        login.
-
-        NOTE: Please keep the returned token safe.
-        To invalidate the token, change the user's password.
-        """
-        expiration_ts = int(time.time()) + expiration_secs
-        resp = requests.get(
-            self._api_prefix + "GenerateAccessToken", verify=False,
-            auth=(self.username, self.password), params={"ExpirationTs": str(expiration_ts)})
-        json = resp.json()
-        if resp.status_code != 200:
-            raise Error("Failed to generate access token: [{}]({})".format(resp.status_code, json["err_msg"]))
-        return json["token"]
 
     def disable_alert(self, cam_ids, reason):
         """ Disable alerts for camera(s) or the home if "cam_ids" is empty.
@@ -216,21 +156,6 @@ class Camect:
         resp = requests.get(self._api_prefix + "EnableAlert", verify=False, auth=(self.username, self.password), params=params)
         json = resp.json()
         if resp.status_code != 200:
-            self.logger.error(
-                "Failed to enable/disable alert: [%d](%s)", resp.status_code, json["err_msg"])
-
-#     def start_hls(self, cam_id: str):
-#         """ Start HLS the camera. Returns the HLS URL.
-# 
-#         The URL expires after it's been idle for 1 minute.
-#         NOTE: This is an experimental feature, only available for pro units now.
-#         """
-#         resp = requests.get(
-#             self._api_prefix + "StartStreaming", verify=False, auth=(self._user, self._password),
-#             params={ "Type": "1", "CamId": cam_id, "StreamingHost": self._server_addr })
-#         json = resp.json()
-#         if resp.status_code != 200:
-#             self.logger.error(
-#                 "Failed to start HLS: [%d](%s)", resp.status_code, json["err_msg"])
-#         return json["hls_url"]
+            device = indigo.devices[self.deviceID]
+            self.logger.warning("{}: Error on EnableAlert [{}]({})".format(device.name, resp.status_code, resp.json()["err_msg"]))
 
