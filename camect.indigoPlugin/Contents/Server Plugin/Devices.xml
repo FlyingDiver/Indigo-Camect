@@ -27,6 +27,31 @@
                 <TriggerLabel>Last Event</TriggerLabel>
                 <ControlPageLabel>Last Event</ControlPageLabel>
             </State>
+            <State id="last_event_type">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Type</TriggerLabel>
+                <ControlPageLabel>Last Event Type</ControlPageLabel>
+            </State>
+            <State id="last_event_desc">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Description</TriggerLabel>
+                <ControlPageLabel>Last Event Description</ControlPageLabel>
+            </State>
+            <State id="last_event_url">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event URL</TriggerLabel>
+                <ControlPageLabel>Last Event URL</ControlPageLabel>
+            </State>
+            <State id="last_event_cam_id">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Camera</TriggerLabel>
+                <ControlPageLabel>Last Event Camera</ControlPageLabel>
+            </State>
+            <State id="last_event_detected">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Objects</TriggerLabel>
+                <ControlPageLabel>Last Event Objects</ControlPageLabel>
+            </State>
            <State id="name">
                 <ValueType >String</ValueType>
                 <TriggerLabel>Name</TriggerLabel>
