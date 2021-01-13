@@ -1,9 +1,45 @@
 <?xml version="1.0"?>
 <Actions>
-	<Action id="disableAlerts" deviceFilter="self.camect">
+	<Action id="snapshotCamera">
+		<Name>Camera Snapshot</Name>
+		<CallbackMethod>snapshotCameraCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
+            <Field id="cameraID" type="menu">
+                <Label>Select Camera:</Label>
+                <List class="self" filter="" method="pickCamera" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
+       </ConfigUI>
+	</Action>
+	<Action id="setMode">
+		<Name>Set Mode</Name>
+		<CallbackMethod>setModeCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
+            <Field id="mode" type="textfield">
+                <Label>Mode:</Label>
+            </Field>
+        </ConfigUI>
+	</Action>
+<!--
+	<Action id="disableAlerts" deviceFilter="self">
 		<Name>Disable Alerts</Name>
 		<CallbackMethod>disableAlertsCommand</CallbackMethod>
         <ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
             <Field id="cameraID" type="menu">
                 <Label>Select Camera:</Label>
                 <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
@@ -17,10 +53,15 @@
 			</Field>
         </ConfigUI>
 	</Action>
-	<Action id="enableAlerts" deviceFilter="self.camect">
+	<Action id="enableAlerts" deviceFilter="self">
 		<Name>Enable Alerts</Name>
 		<CallbackMethod>EnableAlertsCommand</CallbackMethod>
         <ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
             <Field id="cameraID" type="menu">
                 <Label>Select Camera:</Label>
                 <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
@@ -34,13 +75,5 @@
 			</Field>
         </ConfigUI>
 	</Action>
-	<Action id="setMode" deviceFilter="self.camect">
-		<Name>Set Mode</Name>
-		<CallbackMethod>setModeCommand</CallbackMethod>
-        <ConfigUI>
-            <Field id="mode" type="textfield">
-                <Label>Mode:</Label>
-            </Field>
-        </ConfigUI>
-	</Action>
+-->
 </Actions>

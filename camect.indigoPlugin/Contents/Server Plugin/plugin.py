@@ -37,7 +37,8 @@ class Plugin(indigo.PluginBase):
         self.camects = {}
         self.camect_cameras = {}
         self.camect_info = {}
-        self.triggers = {}
+        self.alert_triggers = {}
+        self.mode_triggers = {}
 
     def shutdown(self):
         self.logger.info(u"Stopping Camect")
@@ -68,9 +69,10 @@ class Plugin(indigo.PluginBase):
             ]
             device.updateStatesOnServer(key_value_list)   
 
-            self.camect_cameras[device.id] = self.camects[device.id].list_cameras()
+            self.camect_cameras[device.id] = {}
             self.logger.debug(u"Known Cameras:")
-            for cam in self.camect_cameras[device.id]:
+            for cam in  self.camects[device.id].list_cameras():
+                self.camect_cameras[device.id][cam['id']] = cam
                 self.logger.debug("{}: {}".format(cam["name"], cam))
 
         else:
@@ -94,45 +96,69 @@ class Plugin(indigo.PluginBase):
         try:
             event = json.loads(event_json)
         except Exception as err:
-            self.logger.error("Invalid JSON '{}': {}".format(event_json, err))
+            self.logger.error(u"{}: Invalid JSON '{}': {}".format(device.name, event_json, err))
 
-        key_value_list = [
-              {'key':'last_event',          'value':event_json},
-              {'key':'last_event_type',     'value':event['type']},
-              {'key':'last_event_desc',     'value':event['desc']},
-              {'key':'last_event_url',      'value':event['url']},
-              {'key':'last_event_cam_id',   'value':event['cam_id']},
-              {'key':'last_event_detected', 'value':' '.join(event['detected_obj'])}
-        ]
-        device.updateStatesOnServer(key_value_list)   
-             
-        # Now do any triggers
+        self.logger.info(u"{}: {}".format(device.name, event['desc']))
 
-        for trigger in self.triggers.values():
-            if trigger.pluginTypeId == "eventReceived":
-                if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id))     and \
-                   (trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id'])    and \
-                   (trigger.pluginProps["object"] == "-1")   or (trigger.pluginProps["object"]   in event['detected_obj']):
+        if event['type'] == 'alert':
+            key_value_list = [
+                {'key':'last_event',          'value':event_json},
+                {'key':'last_event_type',     'value':event['type']},
+                {'key':'last_event_desc',     'value':event['desc']},
+                {'key':'last_event_url',      'value':event['url']},
+                {'key':'last_event_cam_id',   'value':event['cam_id']},
+                {'key':'last_event_cam_name', 'value':event['cam_name']},
+                {'key':'last_event_detected', 'value':' '.join(event['detected_obj'])}
+            ]
+            device.updateStatesOnServer(key_value_list)  
+
+            self.logger.debug(u"Alert event: camectID: {}, cam_id: {}, detected_obj = {}".format(device.id, event['cam_id'], event['detected_obj']))
+            for trigger in self.alert_triggers.values():
+                self.logger.debug(u"Alert trigger: camectID: {}, cam_id: {}, detected_obj = {}".format(trigger.pluginProps['camectID'], trigger.pluginProps['cam_id'], trigger.pluginProps['object']))
+                
+                if ((trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)))     and \
+                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id']))    and \
+                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["object"]   in event['detected_obj'])):
                     indigo.trigger.execute(trigger)
-                                        
-            else:
-                self.logger.error("{}: Unknown Trigger Type {}".format(trigger.name, trigger.pluginTypeId))
-    
+                    
+        elif event['type'] == 'mode':
+            key_value_list = [
+                {'key':'last_event',        'value':event_json},
+                {'key':'last_event_type',   'value':event['type']},
+                {'key':'mode',              'value':event['desc']}
+            ]
+            device.updateStatesOnServer(key_value_list)  
+            
+            for trigger in self.mode_triggers.values():
+                self.logger.debug(u"Mode trigger: {}".format(trigger.pluginProps))
+                self.logger.debug(u"Alert camectID: {}".format(device.id))
 
+                if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
+                    indigo.trigger.execute(trigger)
+
+ 
   
     ########################################
     # Trigger (Event) handling 
     ########################################
 
     def triggerStartProcessing(self, trigger):
-        self.logger.debug("{}: Adding Trigger".format(trigger.name))
-        assert trigger.id not in self.triggers
-        self.triggers[trigger.id] = trigger
+        self.logger.debug("{}: Adding {} Trigger".format(trigger.name, trigger.pluginTypeId))
+        if trigger.pluginTypeId == "alertEvent":
+            assert trigger.id not in self.alert_triggers
+            self.alert_triggers[trigger.id] = trigger
+        if trigger.pluginTypeId == "modeEvent":
+            assert trigger.id not in self.mode_triggers
+            self.mode_triggers[trigger.id] = trigger
 
     def triggerStopProcessing(self, trigger):
-        self.logger.debug("{}: Removing Trigger".format(trigger.name))
-        assert trigger.id in self.triggers
-        del self.triggers[trigger.id]
+        self.logger.debug("{}: Removing {} Trigger".format(trigger.name, trigger.pluginTypeId))
+        if trigger.pluginTypeId == "alertEvent":
+            assert trigger.id in self.alert_triggers
+            del self.alert_triggers[trigger.id]
+        if trigger.pluginTypeId == "modeEvent":
+            assert trigger.id in self.mode_triggers
+            del self.mode_triggers[trigger.id]
 
   
     ########################################
@@ -152,6 +178,20 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"{}: enableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
 
 
+    def setModeCommand(self, pluginAction, dev):
+        camect = int(pluginAction.props['camectID'])
+        self.logger.debug(u"setModeCommand, new mode: {}".format(pluginAction.props['mode']))
+        self.camects[camect].set_mode(pluginAction.props['mode'])
+
+
+    def snapshotCameraCommand(self, pluginAction, dev):
+        camect = int(pluginAction.props['camectID'])
+        camera = self.camect_cameras[camect][pluginAction.props['cameraID']]
+        image = self.camects[camect].snapshot_camera(camera['id'], camera['width'], camera['height'])
+        path = "{}/IndigoWebServer/snapshot-{}.jpg".format(indigo.server.getInstallFolderPath(), camera['id'])
+        f = open(path, 'wb')
+        f.write(image)
+        f.close
 
     ########################################
     # ConfigUI methods
@@ -171,7 +211,7 @@ class Plugin(indigo.PluginBase):
         return (True, valuesDict)
     
     def pickCamect(self, filter=None, valuesDict=None, typeId=0, targetId=0):
-        self.logger.debug(u"pickCamect typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
+        self.logger.threaddebug(u"pickCamect typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Camect -")]
         else:
@@ -183,7 +223,7 @@ class Plugin(indigo.PluginBase):
         return retList
 
     def pickCamera(self, filter=None, valuesDict=None, typeId=0, targetId=0):
-        self.logger.debug(u"pickCamera typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
+        self.logger.threaddebug(u"pickCamera typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Camera -")]
         elif "All" in filter:
@@ -191,7 +231,7 @@ class Plugin(indigo.PluginBase):
         else:
             retList = []
         try:
-            for cam in self.camect_cameras[int(valuesDict['camectID'])]:
+            for cam in self.camect_cameras[int(valuesDict['camectID'])].values():
                 retList.append((cam["id"], cam["name"]))
         except:
             pass
@@ -199,7 +239,7 @@ class Plugin(indigo.PluginBase):
         return retList
 
     def pickObject(self, filter=None, valuesDict=None, typeId=0, targetId=0):
-        self.logger.debug(u"pickObject typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
+        self.logger.threaddebug(u"pickObject typeId = {}, targetId = {}, valuesDict = {}".format(typeId, targetId, valuesDict))
         if "Any" in filter:
             retList = [("-1","- Any Object -")]
         elif "All" in filter:
@@ -217,4 +257,39 @@ class Plugin(indigo.PluginBase):
     # doesn't do anything, just needed to force other menus to dynamically refresh
     def menuChanged(self, valuesDict, typeId, devId):
         return valuesDict
+
+
+    def getActionConfigUiValues(self, pluginProps, typeId, devId):
+        self.logger.debug(u"getActionConfigUiValues, typeId = {}, devId = {}, pluginProps = {}".format(typeId, devId, pluginProps))
+        valuesDict = pluginProps
+        errorMsgDict = indigo.Dict()
+        if typeId == "yourActionId":  # where yourActionId is the ID for the action used in Actions.xml
+            valuesDict["testLifxLamp"] = someDefaultValue  # probably based on devId?
+        return (valuesDict, errorMsgDict)
+      
+    def getMenuActionConfigUiValues(self, menuId):
+        self.logger.debug(u"getMenuActionConfigUiValues, menuId = {}".format(menuId))
+        valuesDict = indigo.Dict()
+        errorMsgDict = indigo.Dict()
+        if menuId == "yourMenuItemId":
+            valuesDict["someFieldId"] = someDefaultValue
+        return (valuesDict, errorMsgDict)
+      
+    def getDeviceConfigUiValues(self, pluginProps, typeId, devId):
+        self.logger.debug(u"getDeviceConfigUiValues, typeId = {}, devId = {}, pluginProps = {}".format(typeId, devId, pluginProps))
+        valuesDict = indigo.Dict(pluginProps)
+        errorsDict = indigo.Dict()
+        if len(valuesDict) == 0:
+            if typeId == "foo":
+                valuesDict["bar"] = "123"
+        return (valuesDict, errorsDict)
+
+    def getPrefsConfigUiValues(self):
+        self.logger.debug(u'getPrefsConfigUiValues')
+        prefsConfigUiValues = self.pluginPrefs
+        for key in prefsConfigUiValues:
+            if prefsConfigUiValues[key] == '':
+                prefsConfigUiValues[key] = u'None'
+        return prefsConfigUiValues
+      
 

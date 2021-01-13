@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Events>
-    <Event id="eventReceived" deviceFilter="self">
-        <Name>Event Received</Name>
+    <Event id="alertEvent">
+        <Name>Alert Event</Name>
 		<ConfigUI>
             <Field id="camectID" type="menu">
                 <Label>Select Camect:</Label>
@@ -18,6 +18,16 @@
                 <List class="self" filter="Any" method="pickObject" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>       
+		</ConfigUI>
+    </Event>
+    <Event id="modeEvent">
+        <Name>Mode Event</Name>
+		<ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>            
 		</ConfigUI>
     </Event>
 </Events>

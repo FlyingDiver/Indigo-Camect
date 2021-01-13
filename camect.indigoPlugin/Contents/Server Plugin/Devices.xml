@@ -44,6 +44,11 @@
             </State>
             <State id="last_event_cam_id">
                 <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Camera ID</TriggerLabel>
+                <ControlPageLabel>Last Event Camera ID</ControlPageLabel>
+            </State>
+            <State id="last_event_cam_name">
+                <ValueType >String</ValueType>
                 <TriggerLabel>Last Event Camera</TriggerLabel>
                 <ControlPageLabel>Last Event Camera</ControlPageLabel>
             </State>
@@ -79,9 +84,6 @@
             </State>
         </States>
         <UiDisplayStateId>status</UiDisplayStateId>
-    </Device>
-    <Device id="camera" type="custom">
-        <Name>Camect Camera</Name>
     </Device>
 </Devices>
  
