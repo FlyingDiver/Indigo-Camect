@@ -106,7 +106,7 @@ class Camect:
 
 
     def set_mode(self, mode):
-        resp = requests.get(self._api_prefix + "SetOperationMode", verify=False, auth=(self.username, self._assword), params={"Mode": mode})
+        resp = requests.get(self._api_prefix + "SetOperationMode", verify=False, auth=(self.username, self.password), params={"Mode": mode})
         if resp.status_code != 200:
             device = indigo.devices[self.deviceID]
             self.logger.warning("{}: Failed to set operation mode to '{}': [{}]({})".format(device.name, mode, resp.status_code, resp.json()["err_msg"]))

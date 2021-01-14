@@ -25,8 +25,12 @@
                 <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
-            <Field id="mode" type="textfield">
-                <Label>Mode:</Label>
+            <Field id="mode" type="menu" defaultValue="DEFAULT">>
+		        <Label>Mode:</Label>
+                <List>
+                    <Option value="DEFAULT" >Normal</Option>
+                    <Option value="HOME">Home</Option>
+                 </List>
             </Field>
         </ConfigUI>
 	</Action>
