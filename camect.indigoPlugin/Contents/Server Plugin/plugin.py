@@ -113,12 +113,14 @@ class Plugin(indigo.PluginBase):
             device.updateStatesOnServer(key_value_list)  
 
             self.logger.debug(u"Alert event: camectID: {}, cam_id: {}, detected_obj = {}".format(device.id, event['cam_id'], event['detected_obj']))
-            for trigger in self.alert_triggers.values():
-                self.logger.debug(u"Alert trigger: camectID: {}, cam_id: {}, detected_obj = {}".format(trigger.pluginProps['camectID'], trigger.pluginProps['cam_id'], trigger.pluginProps['object']))
+            for triggerID in self.alert_triggers:
+                trigger = self.alert_triggers[triggerID]
+                self.logger.threaddebug(u"Checking Alert trigger {}: camectID: {}, cam_id: {}, detected_obj = {}".format(triggerID, trigger.pluginProps['camectID'], trigger.pluginProps['cameraID'], trigger.pluginProps['object']))
                 
                 if ((trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)))     and \
                    ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id']))    and \
-                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["object"]   in event['detected_obj'])):
+                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["object"] in ' '.join(event['detected_obj']) )):
+                    self.logger.debug(u"Executing Alert trigger {}".format(triggerID))
                     indigo.trigger.execute(trigger)
                     
         elif event['type'] == 'mode':
@@ -129,11 +131,12 @@ class Plugin(indigo.PluginBase):
             ]
             device.updateStatesOnServer(key_value_list)  
             
-            for trigger in self.mode_triggers.values():
-                self.logger.debug(u"Mode trigger: {}".format(trigger.pluginProps))
-                self.logger.debug(u"Alert camectID: {}".format(device.id))
+            self.logger.debug(u"Mode event: camectID: {}, mode: {}".format(device.id, event['desc']))
+            for triggerID, trigger in self.mode_triggers.iteritems():
+                self.logger.threaddebug(u"Checking Mode trigger {}: camectID: {}".format(triggerID, trigger.pluginProps['camectID']))
 
                 if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
+                    self.logger.debug(u"Executing Mode trigger {}".format(triggerID))
                     indigo.trigger.execute(trigger)
 
  
@@ -170,14 +173,6 @@ class Plugin(indigo.PluginBase):
     # Plugin Actions object callbacks (pluginAction is an Indigo plugin action instance)
     ########################################
 
-    def disableAlertsCommand(self, pluginAction, dev):
-        self.logger.debug(u"{}: disableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
-
-
-    def enableAlertsCommand(self, pluginAction, dev):
-        self.logger.debug(u"{}: enableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
-
-
     def setModeCommand(self, pluginAction, dev):
         camect = int(pluginAction.props['camectID'])
         self.logger.debug(u"setModeCommand, new mode: {}".format(pluginAction.props['mode']))
@@ -189,9 +184,21 @@ class Plugin(indigo.PluginBase):
         camera = self.camect_cameras[camect][pluginAction.props['cameraID']]
         image = self.camects[camect].snapshot_camera(camera['id'], camera['width'], camera['height'])
         path = "{}/IndigoWebServer/snapshot-{}.jpg".format(indigo.server.getInstallFolderPath(), camera['id'])
-        f = open(path, 'wb')
-        f.write(image)
-        f.close
+        try:
+            f = open(path, 'wb')
+            f.write(image)
+            f.close
+        except:
+            self.logger.warning(u"Error writing image file: {}".format(path))
+        
+
+    def disableAlertsCommand(self, pluginAction, dev):
+        self.logger.debug(u"{}: disableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
+
+
+    def enableAlertsCommand(self, pluginAction, dev):
+        self.logger.debug(u"{}: enableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
+
 
     ########################################
     # ConfigUI methods
