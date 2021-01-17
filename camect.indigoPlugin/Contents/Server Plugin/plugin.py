@@ -115,13 +115,27 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u"Alert event: camectID: {}, cam_id: {}, detected_obj = {}".format(device.id, event['cam_id'], event['detected_obj']))
             for triggerID in self.alert_triggers:
                 trigger = self.alert_triggers[triggerID]
-                self.logger.threaddebug(u"Checking Alert trigger {}: camectID: {}, cam_id: {}, detected_obj = {}".format(triggerID, trigger.pluginProps['camectID'], trigger.pluginProps['cameraID'], trigger.pluginProps['object']))
+                self.logger.threaddebug(u"Checking Alert trigger {}: camectID: {}, cam_id: {}, object = {}".format(triggerID, trigger.pluginProps['camectID'], trigger.pluginProps['cameraID'], trigger.pluginProps['object']))
                 
-                if ((trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)))     and \
-                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id']))    and \
-                   ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["object"] in ' '.join(event['detected_obj']) )):
-                    self.logger.debug(u"Executing Alert trigger {}".format(triggerID))
+                if not ((trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id))):
+                    self.logger.threaddebug(u"Skipping Alert trigger {}, wrong Camect".format(triggerID))
+                    continue
+                    
+                if not ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id'])):
+                    self.logger.threaddebug(u"Skipping Alert trigger {}, wrong camera".format(triggerID))
+                    continue
+                    
+                if trigger.pluginProps["object"] == "-1":
+                    self.logger.debug(u"Executing Any Object Alert trigger {}".format(triggerID))
                     indigo.trigger.execute(trigger)
+                    continue
+
+                for obj in trigger.pluginProps["object"]:
+                    if obj in ' '.join(event['detected_obj']):
+                        self.logger.debug(u"Executing Alert trigger {} for object {}".format(triggerID, obj))
+                        indigo.trigger.execute(trigger)
+                        break
+                
                     
         elif event['type'] == 'mode':
             key_value_list = [

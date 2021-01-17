@@ -13,7 +13,7 @@
                 <List class="self" filter="Any" method="pickCamera" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
-            <Field id="object" type="menu">
+            <Field id="object" type="list" rows="10">
                 <Label>Select Object Type:</Label>
                 <List class="self" filter="Any" method="pickObject" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
