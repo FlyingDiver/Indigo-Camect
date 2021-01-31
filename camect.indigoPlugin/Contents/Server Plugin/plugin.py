@@ -55,6 +55,7 @@ class Plugin(indigo.PluginBase):
             # Make sure it connects.
             info = self.camects[device.id].get_info()
             if not info:
+                self.logger.warning(u"Camect get_info returned no data")
                 return
                             
             self.camect_info[device.id] = info
