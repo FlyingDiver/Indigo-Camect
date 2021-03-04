@@ -14,6 +14,12 @@
                 <List class="self" filter="" method="pickCamera" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
+            <Field id="snapshotName" type="textfield" defaultValue="">
+                <Label>Snapshot filename:</Label>
+            </Field>
+            <Field id="snapshotNamehNote" type="label" fontSize="small" fontColor="darkgray">
+                <Label>Default is snapshot-{cameraID}.</Label>
+            </Field>
        </ConfigUI>
 	</Action>
 	<Action id="setMode">

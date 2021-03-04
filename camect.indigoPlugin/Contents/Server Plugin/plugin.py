@@ -5,6 +5,7 @@
 import logging
 import indigo
 import json
+import time
 
 import requests
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -195,16 +196,26 @@ class Plugin(indigo.PluginBase):
 
 
     def snapshotCameraCommand(self, pluginAction, dev):
-        camect = int(pluginAction.props['camectID'])
-        camera = self.camect_cameras[camect][pluginAction.props['cameraID']]
-        image = self.camects[camect].snapshot_camera(camera['id'], camera['width'], camera['height'])
-        path = "{}/IndigoWebServer/snapshot-{}.jpg".format(indigo.server.getInstallFolderPath(), camera['id'])
+        camectID = int(pluginAction.props['camectID'])
+        camect = indigo.devices[camectID]
+        camera = self.camect_cameras[camectID][pluginAction.props['cameraID']]
+
+        snapshotPath = self.pluginPrefs.get("snapshotPath", "IndigoWebServer/public")
+        snapshotName = pluginAction.props.get('snapshotName', "snapshot-{}".format(camera['id']))
+
+        start = time.time()
+        self.logger.debug(u"{}: snapshotCameraCommand, camera ID: {}".format(camect.name, pluginAction.props['cameraID']))
+        
+        image = self.camects[camectID].snapshot_camera(camera['id'], camera['width'], camera['height'])
+        self.logger.debug(u"{}: snapshotCameraCommand fetch completed @ {}".format(camect.name, (time.time() - start)))
+        savepath = "{}/{}/{}.jpg".format(indigo.server.getInstallFolderPath(), snapshotPath, snapshotName)
         try:
-            f = open(path, 'wb')
+            f = open(savepath, 'wb')
             f.write(image)
             f.close
         except:
             self.logger.warning(u"Error writing image file: {}".format(path))
+        self.logger.debug(u"{}: snapshotCameraCommand write completed @ {}".format(camect.name, (time.time() - start)))
         
 
     def disableAlertsCommand(self, pluginAction, dev):
