@@ -42,7 +42,7 @@ class Camect:
         
         def ws_client():
 
-            self.logger.info("{}: Connecting to '{}'".format(device.name, self._ws_uri))
+            self.logger.debug("{}: Connecting to '{}'".format(device.name, self._ws_uri))
             authorization = "Basic " + self.authorization()
 
             ws = websocket.WebSocketApp(self._ws_uri,

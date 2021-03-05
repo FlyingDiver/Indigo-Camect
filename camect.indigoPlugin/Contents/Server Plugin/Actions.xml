@@ -40,19 +40,18 @@
             </Field>
         </ConfigUI>
 	</Action>
-<!--
-	<Action id="disableAlerts" deviceFilter="self">
+	<Action id="disableAlerts">
 		<Name>Disable Alerts</Name>
 		<CallbackMethod>disableAlertsCommand</CallbackMethod>
         <ConfigUI>
             <Field id="camectID" type="menu">
                 <Label>Select Camect:</Label>
-                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <List class="self" filter="" method="pickCamect" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
             <Field id="cameraID" type="menu">
                 <Label>Select Camera:</Label>
-                <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
+                <List class="self" filter="" method="pickCamera" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
             <Field id="reason" type="textfield">
@@ -63,18 +62,18 @@
 			</Field>
         </ConfigUI>
 	</Action>
-	<Action id="enableAlerts" deviceFilter="self">
+	<Action id="enableAlerts">
 		<Name>Enable Alerts</Name>
-		<CallbackMethod>EnableAlertsCommand</CallbackMethod>
+		<CallbackMethod>enableAlertsCommand</CallbackMethod>
         <ConfigUI>
             <Field id="camectID" type="menu">
                 <Label>Select Camect:</Label>
-                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <List class="self" filter="" method="pickCamect" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
             <Field id="cameraID" type="menu">
                 <Label>Select Camera:</Label>
-                <List class="self" filter="All" method="pickCamera" dynamicReload="true"/>
+                <List class="self" filter="" method="pickCamera" dynamicReload="true"/>
                 <CallbackMethod>menuChanged</CallbackMethod>
             </Field>            
             <Field id="reason" type="textfield">
@@ -85,5 +84,4 @@
 			</Field>
         </ConfigUI>
 	</Action>
--->
 </Actions>

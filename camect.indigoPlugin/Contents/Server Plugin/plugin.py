@@ -144,6 +144,13 @@ class Plugin(indigo.PluginBase):
                         break
                 
                     
+        elif event['type'] == 'alert_enabled' or event['type'] == 'alert_disabled':
+            key_value_list = [
+                {'key':'last_event_cam_id',   'value':event['cam_id']},
+                {'key':'last_event_cam_name', 'value':event['cam_name']}
+            ]
+            device.updateStatesOnServer(key_value_list)  
+            
         elif event['type'] == 'camera_offline' or event['type'] == 'camera_online':
             key_value_list = [
                 {'key':'last_event_cam_id',   'value':event['cam_id']},
@@ -181,7 +188,7 @@ class Plugin(indigo.PluginBase):
                 if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
                     self.logger.debug(u"Executing Mode trigger {}".format(triggerID))
                     indigo.trigger.execute(trigger)
-
+                
  
   
     ########################################
@@ -248,17 +255,29 @@ class Plugin(indigo.PluginBase):
             f = open(savepath, 'wb')
             f.write(image)
             f.close
-        except:
-            self.logger.warning(u"Error writing image file: {}".format(path))
+        except Exception as err:
+            self.logger.warning(u"Error writing image file: {}, err: {}".format(savepath, err))
         self.logger.debug(u"{}: snapshotCameraCommand write completed @ {} to {}".format(camect.name, (time.time() - start), savepath))
         
 
     def disableAlertsCommand(self, pluginAction, dev):
-        self.logger.debug(u"{}: disableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
+        camectID = int(pluginAction.props['camectID'])
+        camect = indigo.devices[camectID]
+        cameraID = pluginAction.props['cameraID']
+        if cameraID == "-1":
+            cameraID = []
+        self.logger.debug(u"{}: disableAlertsCommand, camera: {}, reason: {}".format(camect.name, cameraID, pluginAction.props['reason']))
+        self.camects[camectID].disable_alert([pluginAction.props['cameraID']], pluginAction.props['reason'])
 
 
     def enableAlertsCommand(self, pluginAction, dev):
-        self.logger.debug(u"{}: enableAlertsCommand, pluginAction: {}".format(dev.name, pluginAction))
+        camectID = int(pluginAction.props['camectID'])
+        camect = indigo.devices[camectID]
+        cameraID = pluginAction.props['cameraID']
+        if cameraID == "-1":
+            cameraID = []
+        self.logger.debug(u"{}: enableAlertsCommand, camera: {}, reason: {}".format(camect.name, cameraID, pluginAction.props['reason']))
+        self.camects[camectID].enable_alert([pluginAction.props['cameraID']], pluginAction.props['reason'])
 
 
     ########################################
@@ -327,37 +346,11 @@ class Plugin(indigo.PluginBase):
         return valuesDict
 
 
+    # preload action config dialogs with the first Camect
     def getActionConfigUiValues(self, pluginProps, typeId, devId):
-        self.logger.debug(u"getActionConfigUiValues, typeId = {}, devId = {}, pluginProps = {}".format(typeId, devId, pluginProps))
         valuesDict = pluginProps
         errorMsgDict = indigo.Dict()
-        if typeId == "yourActionId":  # where yourActionId is the ID for the action used in Actions.xml
-            valuesDict["testLifxLamp"] = someDefaultValue  # probably based on devId?
+        if not pluginProps.get('camectID', None):
+            valuesDict["camectID"] = self.camects.keys()[0]
         return (valuesDict, errorMsgDict)
       
-    def getMenuActionConfigUiValues(self, menuId):
-        self.logger.debug(u"getMenuActionConfigUiValues, menuId = {}".format(menuId))
-        valuesDict = indigo.Dict()
-        errorMsgDict = indigo.Dict()
-        if menuId == "yourMenuItemId":
-            valuesDict["someFieldId"] = someDefaultValue
-        return (valuesDict, errorMsgDict)
-      
-    def getDeviceConfigUiValues(self, pluginProps, typeId, devId):
-        self.logger.debug(u"getDeviceConfigUiValues, typeId = {}, devId = {}, pluginProps = {}".format(typeId, devId, pluginProps))
-        valuesDict = indigo.Dict(pluginProps)
-        errorsDict = indigo.Dict()
-        if len(valuesDict) == 0:
-            if typeId == "foo":
-                valuesDict["bar"] = "123"
-        return (valuesDict, errorsDict)
-
-    def getPrefsConfigUiValues(self):
-        self.logger.debug(u'getPrefsConfigUiValues')
-        prefsConfigUiValues = self.pluginPrefs
-        for key in prefsConfigUiValues:
-            if prefsConfigUiValues[key] == '':
-                prefsConfigUiValues[key] = u'None'
-        return prefsConfigUiValues
-      
-
