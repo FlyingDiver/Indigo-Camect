@@ -39,6 +39,7 @@ class Plugin(indigo.PluginBase):
         self.camect_cameras = {}
         self.camect_info = {}
         self.alert_triggers = {}
+        self.camera_triggers = {}
         self.mode_triggers = {}
 
     def shutdown(self):
@@ -100,12 +101,16 @@ class Plugin(indigo.PluginBase):
         except Exception as err:
             self.logger.error(u"{}: Invalid JSON '{}': {}".format(device.name, event_json, err))
 
-        self.logger.info(u"{}: {}".format(device.name, event['desc']))
+        key_value_list = [
+            {'key':'last_event',          'value':event_json},
+            {'key':'last_event_type',     'value':event['type']}
+        ]
+        device.updateStatesOnServer(key_value_list)  
 
         if event['type'] == 'alert':
+            self.logger.info(u"{}: {}".format(device.name, event['desc']))
+            
             key_value_list = [
-                {'key':'last_event',          'value':event_json},
-                {'key':'last_event_type',     'value':event['type']},
                 {'key':'last_event_desc',     'value':event['desc']},
                 {'key':'last_event_url',      'value':event['url']},
                 {'key':'last_event_cam_id',   'value':event['cam_id']},
@@ -139,10 +144,32 @@ class Plugin(indigo.PluginBase):
                         break
                 
                     
+        elif event['type'] == 'camera_offline' or event['type'] == 'camera_online':
+            key_value_list = [
+                {'key':'last_event_cam_id',   'value':event['cam_id']},
+                {'key':'last_event_cam_name', 'value':event['cam_name']}
+            ]
+            device.updateStatesOnServer(key_value_list)  
+            
+            self.logger.debug(u"Camera event: camectID: {}, type: {}".format(device.id, event['type']))
+            for triggerID, trigger in self.camera_triggers.iteritems():
+                self.logger.threaddebug(u"Checking Camera trigger {}: camectID: {}".format(triggerID, trigger.pluginProps['camectID']))
+
+                if not ((trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id))):
+                    self.logger.threaddebug(u"Skipping Camera trigger {}, wrong Camect".format(triggerID))
+                    continue
+                    
+                if not ((trigger.pluginProps["cameraID"] == "-1") or (trigger.pluginProps["cameraID"] == event['cam_id'])):
+                    self.logger.threaddebug(u"Skipping Camera trigger {}, wrong camera".format(triggerID))
+                    continue
+                    
+                if trigger.pluginProps["type"] == event['type']:
+                    self.logger.debug(u"Executing Camera trigger {}".format(triggerID))
+                    indigo.trigger.execute(trigger)
+
+
         elif event['type'] == 'mode':
             key_value_list = [
-                {'key':'last_event',        'value':event_json},
-                {'key':'last_event_type',   'value':event['type']},
                 {'key':'mode',              'value':event['desc']}
             ]
             device.updateStatesOnServer(key_value_list)  
@@ -166,18 +193,24 @@ class Plugin(indigo.PluginBase):
         if trigger.pluginTypeId == "alertEvent":
             assert trigger.id not in self.alert_triggers
             self.alert_triggers[trigger.id] = trigger
-        if trigger.pluginTypeId == "modeEvent":
+        elif trigger.pluginTypeId == "modeEvent":
             assert trigger.id not in self.mode_triggers
             self.mode_triggers[trigger.id] = trigger
+        elif trigger.pluginTypeId == "cameraEvent":
+            assert trigger.id not in self.camera_triggers
+            self.camera_triggers[trigger.id] = trigger
 
     def triggerStopProcessing(self, trigger):
         self.logger.debug("{}: Removing {} Trigger".format(trigger.name, trigger.pluginTypeId))
         if trigger.pluginTypeId == "alertEvent":
             assert trigger.id in self.alert_triggers
             del self.alert_triggers[trigger.id]
-        if trigger.pluginTypeId == "modeEvent":
+        elif trigger.pluginTypeId == "modeEvent":
             assert trigger.id in self.mode_triggers
             del self.mode_triggers[trigger.id]
+        elif trigger.pluginTypeId == "cameraEvent":
+            assert trigger.id in self.camera_triggers
+            del self.camera_triggers[trigger.id]
 
   
     ########################################
@@ -201,7 +234,9 @@ class Plugin(indigo.PluginBase):
         camera = self.camect_cameras[camectID][pluginAction.props['cameraID']]
 
         snapshotPath = self.pluginPrefs.get("snapshotPath", "IndigoWebServer/public")
-        snapshotName = pluginAction.props.get('snapshotName', "snapshot-{}".format(camera['id']))
+        snapshotName = pluginAction.props.get('snapshotName', None)
+        if not snapshotName or (len(snapshotName) == 0):
+            snapshotName = "snapshot-{}".format(camera['id'])
 
         start = time.time()
         self.logger.debug(u"{}: snapshotCameraCommand, camera ID: {}".format(camect.name, pluginAction.props['cameraID']))
@@ -215,7 +250,7 @@ class Plugin(indigo.PluginBase):
             f.close
         except:
             self.logger.warning(u"Error writing image file: {}".format(path))
-        self.logger.debug(u"{}: snapshotCameraCommand write completed @ {}".format(camect.name, (time.time() - start)))
+        self.logger.debug(u"{}: snapshotCameraCommand write completed @ {} to {}".format(camect.name, (time.time() - start), savepath))
         
 
     def disableAlertsCommand(self, pluginAction, dev):
