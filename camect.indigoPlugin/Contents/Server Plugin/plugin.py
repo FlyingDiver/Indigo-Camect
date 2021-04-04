@@ -86,7 +86,7 @@ class Plugin(indigo.PluginBase):
         if device.deviceTypeId == "camect":
             self.logger.info(u"{}: Stopping Device".format(device.name))
             del self.camects[device.id]
-            device.updateStateOnServer(key="status", value="None")
+            device.updateStateOnServer(key="status", value="Stopped")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
         else:
             self.logger.warning(u"{}: deviceStopComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
