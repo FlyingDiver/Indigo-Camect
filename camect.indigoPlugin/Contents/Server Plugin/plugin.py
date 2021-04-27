@@ -92,6 +92,11 @@ class Plugin(indigo.PluginBase):
             self.logger.warning(u"{}: deviceStopComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
 
 
+    def camectStatus(self, devID, status_json):
+        device = indigo.devices[devID]
+        self.logger.debug(u"{}: Camect Status JSON: {}".format(device.name, status_json))
+        
+
     def processReceivedEvent(self, devID, event_json):
         device = indigo.devices[devID]
         self.logger.debug(u"{}: Event JSON: {}".format(device.name, event_json))

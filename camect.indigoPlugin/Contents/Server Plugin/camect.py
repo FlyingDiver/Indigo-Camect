@@ -63,16 +63,21 @@ class Camect:
             self.logger.debug("{}: websocket on_error: {}".format(device.name, error))
             device.updateStateOnServer(key="status", value="Error")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
+            msg = json.dumps({"status": "error", "error": error})
+            indigo.activePlugin.camectStatus(self.deviceID, msg)
 
         def on_open(ws):
             self.logger.debug("{}: websocket on_open".format(device.name))
             device.updateStateOnServer(key="status", value="Connected")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
-
+            msg = json.dumps({"status": "connected"})
+            indigo.activePlugin.camectStatus(self.deviceID, msg)
         def on_close(ws):
             self.logger.debug("{}: websocket on_close".format(device.name))
             device.updateStateOnServer(key="status", value="Disconnected")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+            msg = json.dumps({"status": "disconnected"})
+            indigo.activePlugin.camectStatus(self.deviceID, msg)
           
         ################################################################################
                     
