@@ -36,8 +36,8 @@ class Plugin(indigo.PluginBase):
         self.logger.info(u"Starting Camect")
         
         self.camects = {}
-        self.camect_cameras = {}
         self.camect_info = {}
+        self.camect_cameras = {}
         self.alert_triggers = {}
         self.camera_triggers = {}
         self.mode_triggers = {}
@@ -50,7 +50,14 @@ class Plugin(indigo.PluginBase):
 
         if device.deviceTypeId == "camect":
             self.logger.info(u"{}: Starting Device".format(device.name))
-            self.camects[device.id] = Camect(device)
+            self.camects[device.id] = Camect(device.name, device.id,
+                device.pluginProps.get('address', ''), 
+                device.pluginProps.get('port', '443'), 
+                device.pluginProps.get('username', 'Admin'), 
+                device.pluginProps.get('password', None), 
+                self.callBack
+            )
+
             device.updateStateOnServer(key="status", value="None")
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
             
@@ -76,7 +83,9 @@ class Plugin(indigo.PluginBase):
             self.logger.debug(u"Known Cameras:")
             for cam in  self.camects[device.id].list_cameras():
                 self.camect_cameras[device.id][cam['id']] = cam
-                self.logger.debug("{}: {}".format(cam["name"], cam))
+                
+            for cam in self.camect_cameras[device.id].values():
+                self.logger.debug("{}: {}".format(cam['name'], cam))
 
         else:
             self.logger.warning(u"{}: deviceStartComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
@@ -90,24 +99,35 @@ class Plugin(indigo.PluginBase):
             device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
         else:
             self.logger.warning(u"{}: deviceStopComm: Invalid device type: {}".format(device.name, device.deviceTypeId))
+     
 
-
-    def camectStatus(self, devID, status_json):
-        device = indigo.devices[devID]
-        self.logger.debug(u"{}: Camect Status JSON: {}".format(device.name, status_json))
+    def callBack(self, info):
+        self.logger.theaddebug(u"{}: callBack device: {}, type: {}, info: {}".format(info["name"], info["devID"], info["event"], info))
+        device = indigo.devices[info['devID']]
         
+        if info['event'] == 'status':
+            self.logger.debug(u"{}: Camect Status: {}".format(device.name, info['status']))
+            device.updateStateOnServer(key="status", value=info['status'])
+            return
 
-    def processReceivedEvent(self, devID, event_json):
-        device = indigo.devices[devID]
-        self.logger.debug(u"{}: Event JSON: {}".format(device.name, event_json))
+        elif info['event'] == 'error':
+            self.logger.debug(u"{}: Camect Error: {}".format(device.name, info['error']))
+            device.updateStateOnServer(key="status", value=info['error'])
+            return
         
+        elif info['event'] != 'message':
+            self.logger.warning(u"{}: Unknown Camect callback event: {}".format(device.name, info['event']))
+            return
+                
         try:
-            event = json.loads(event_json)
+            event = json.loads(info['message'])
         except Exception as err:
-            self.logger.error(u"{}: Invalid JSON '{}': {}".format(device.name, event_json, err))
-
+            self.logger.error(u"{}: Invalid JSON '{}': {}".format(device.name, info['message'], err))
+        
+        self.logger.debug(u"{}: Camect Event: {}".format(device.name, event))
+        
         key_value_list = [
-            {'key':'last_event',          'value':event_json},
+            {'key':'last_event',          'value':info['message']},
             {'key':'last_event_type',     'value':event['type']}
         ]
         device.updateStatesOnServer(key_value_list)  
@@ -243,15 +263,20 @@ class Plugin(indigo.PluginBase):
     def snapshotCameraCommand(self, pluginAction, dev):
         camectID = int(pluginAction.props['camectID'])
         camect = indigo.devices[camectID]
-        camera = self.camect_cameras[camectID][pluginAction.props['cameraID']]
-
+        cameraID = pluginAction.props['cameraID']
+        camera = self.camect_cameras[camectID][cameraID]
+    
+        if camera['disabled']:
+            self.logger.warning(u"{}: snapshotCameraCommand error, camera '{}' is disabled!".format(camect.name, camera['name']))
+            return
+        
         snapshotPath = self.pluginPrefs.get("snapshotPath", "IndigoWebServer/public")
         snapshotName = pluginAction.props.get('snapshotName', None)
         if not snapshotName or (len(snapshotName) == 0):
             snapshotName = "snapshot-{}".format(camera['id'])
 
         start = time.time()
-        self.logger.debug(u"{}: snapshotCameraCommand, camera ID: {}".format(camect.name, pluginAction.props['cameraID']))
+        self.logger.debug(u"{}: snapshotCameraCommand, camera: {} ({})".format(camect.name, camera['name'], camera['id']))
         
         image = self.camects[camectID].snapshot_camera(camera['id'], camera['width'], camera['height'])
         self.logger.debug(u"{}: snapshotCameraCommand fetch completed @ {}".format(camect.name, (time.time() - start)))
