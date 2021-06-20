@@ -359,3 +359,15 @@ class Plugin(indigo.PluginBase):
             valuesDict["camectID"] = self.camects.keys()[0]
         return (valuesDict, errorMsgDict)
       
+    ########################################
+    # Plugin Menu object callbacks
+    ########################################
+
+
+    def dumpConfig(self):
+        for devID in self.camect_info:
+            device = indigo.devices[devID]
+            self.logger.info(device.name + ":\n" + json.dumps(self.camect_info[devID], sort_keys=True, indent=4, separators=(',', ': ')))
+            self.logger.info(device.name + ":\n" + json.dumps(self.camect_cameras[devID], sort_keys=True, indent=4, separators=(',', ': ')))
+        return True
+
