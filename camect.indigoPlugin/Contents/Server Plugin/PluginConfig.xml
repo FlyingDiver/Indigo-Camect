@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <PluginConfig>
     <SupportURL>http://forums.indigodomo.com/viewforum.php?f=214</SupportURL>
-    <Field id="snapshotPath" type="textfield" defaultValue="IndigoWebServer/public">
+    <Field id="snapshotPath" type="textfield" defaultValue="Web Assets/public">
         <Label>Path for Snapshot files:</Label>
     </Field>
     <Field id="snapshotPathNote" type="label" fontSize="small" fontColor="darkgray">
