@@ -262,10 +262,17 @@ class Plugin(indigo.PluginBase):
 
     def snapshotCameraCommand(self, pluginAction, dev):
         camectID = int(pluginAction.props['camectID'])
-        camect = indigo.devices[camectID]
         cameraID = pluginAction.props['cameraID']
-        camera = self.camect_cameras[camectID][cameraID]
-    
+        self.logger.debug(u"{}: snapshotCameraCommand, camectID: {} cameraID: {}".format(camect.name, camectID, cameraID))
+
+        try:
+            camect = indigo.devices[camectID]
+            camera = self.camect_cameras[camectID][cameraID]
+        except KeyError as err:
+            self.logger.warning(u"{}: snapshotCameraCommand KeyError: {}".format(camect.name, err))
+            self.logger.debug(u"{}: snapshotCameraCommand, self.camect_cameras: {}".format(camect.name, self.camect_cameras))
+            return
+            
         if camera['disabled']:
             self.logger.warning(u"{}: snapshotCameraCommand error, camera '{}' is disabled!".format(camect.name, camera['name']))
             return
@@ -392,7 +399,9 @@ class Plugin(indigo.PluginBase):
     def dumpConfig(self):
         for devID in self.camect_info:
             device = indigo.devices[devID]
-            self.logger.info(device.name + ":\n" + json.dumps(self.camect_info[devID], sort_keys=True, indent=4, separators=(',', ': ')))
-            self.logger.info(device.name + ":\n" + json.dumps(self.camect_cameras[devID], sort_keys=True, indent=4, separators=(',', ': ')))
+            self.logger.info(u"{}: Config Data for device {}:\n{}\n{}".format(device.name, device.id,
+                json.dumps(self.camect_info[devID], sort_keys=True, indent=4, separators=(',', ': ')),
+                json.dumps(self.camect_cameras[devID], sort_keys=True, indent=4, separators=(',', ': '))
+            ))
         return True
 
