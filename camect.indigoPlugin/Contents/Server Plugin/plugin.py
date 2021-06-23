@@ -246,24 +246,19 @@ class Plugin(indigo.PluginBase):
 
   
     ########################################
-    # Menu Methods
-    ########################################
-
-
-    ########################################
     # Plugin Actions object callbacks (pluginAction is an Indigo plugin action instance)
     ########################################
 
-    def setModeCommand(self, pluginAction, dev):
-        camect = int(pluginAction.props['camectID'])
+    def setModeCommand(self, pluginAction):
+        camectID = int(pluginAction.props['camectID'])
         self.logger.debug(u"setModeCommand, new mode: {}".format(pluginAction.props['mode']))
-        self.camects[camect].set_mode(pluginAction.props['mode'])
+        self.camects[camectID].set_mode(pluginAction.props['mode'])
 
 
-    def snapshotCameraCommand(self, pluginAction, dev):
+    def snapshotCameraCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
         cameraID = pluginAction.props['cameraID']
-        self.logger.debug(u"{}: snapshotCameraCommand, camectID: {} cameraID: {}".format(camect.name, camectID, cameraID))
+        self.logger.debug(u"snapshotCameraCommand, camectID: {} cameraID: {}".format(camectID, cameraID))
 
         try:
             camect = indigo.devices[camectID]
@@ -297,7 +292,7 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(u"{}: snapshotCameraCommand write completed @ {} to {}".format(camect.name, (time.time() - start), savepath))
         
 
-    def disableAlertsCommand(self, pluginAction, dev):
+    def disableAlertsCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
         camect = indigo.devices[camectID]
         cameraID = pluginAction.props['cameraID']
@@ -307,7 +302,7 @@ class Plugin(indigo.PluginBase):
         self.camects[camectID].disable_alert([pluginAction.props['cameraID']], pluginAction.props['reason'])
 
 
-    def enableAlertsCommand(self, pluginAction, dev):
+    def enableAlertsCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
         camect = indigo.devices[camectID]
         cameraID = pluginAction.props['cameraID']
@@ -390,11 +385,11 @@ class Plugin(indigo.PluginBase):
         if not pluginProps.get('camectID', None):
             valuesDict["camectID"] = self.camects.keys()[0]
         return (valuesDict, errorMsgDict)
-      
-    ########################################
-    # Plugin Menu object callbacks
-    ########################################
 
+
+    ########################################
+    # Menu Methods
+    ########################################
 
     def dumpConfig(self):
         for devID in self.camect_info:
