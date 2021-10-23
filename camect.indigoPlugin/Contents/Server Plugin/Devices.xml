@@ -27,6 +27,11 @@
                 <TriggerLabel>Last Event</TriggerLabel>
                 <ControlPageLabel>Last Event</ControlPageLabel>
             </State>
+            <State id="last_event_time">
+                <ValueType >String</ValueType>
+                <TriggerLabel>Last Event Time</TriggerLabel>
+                <ControlPageLabel>Last Event Time</ControlPageLabel>
+            </State>
             <State id="last_event_type">
                 <ValueType >String</ValueType>
                 <TriggerLabel>Last Event Type</TriggerLabel>

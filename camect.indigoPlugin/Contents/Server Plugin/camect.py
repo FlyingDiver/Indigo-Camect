@@ -31,6 +31,8 @@ class Camect:
         self._ws_uri = "wss://{}:{}/api/event_ws".format(address, port)
 
         self.authorization = "Basic " + base64.b64encode("{}:{}".format(self.username, self.password).encode()).decode()
+
+        self.logger.threaddebug("{}: Camect object initialized, hubID = {}, auth = {}, callback = {}".format(self.hub_name, self.hub_devID, self.authorization, self.callback))
         
         ################################################################################
         # Minimal Websocket Client
@@ -38,39 +40,40 @@ class Camect:
         
         def ws_client():
 
-            self.logger.debug("{}: Connecting to '{}'".format(self.hub_name, self._ws_uri))
+            self.logger.threaddebug("{}: Connecting to '{}'".format(self.hub_name, self._ws_uri))
 
-            ws = websocket.WebSocketApp(self._ws_uri, header={'Authorization': self.authorization},
+            self.ws = websocket.WebSocketApp(self._ws_uri, header={'Authorization': self.authorization},
                     on_message = on_message,
                     on_error = on_error,
                     on_close = on_close,
                     on_open = on_open)
 
-            ws.run_forever(ping_interval=5, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
+            self.ws.run_forever(ping_interval=5, sslopt={"cert_reqs": ssl.CERT_NONE, "check_hostname": False})
  
         def on_message(ws, message):
             self.logger.threaddebug("{}: websocket on_message: {}".format(self.hub_name, message))
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "message", "message": message})
 
         def on_error(ws, error):
-            self.logger.debug("{}: websocket on_error: {}".format(self.hub_name, error))
+            self.logger.threaddebug("{}: websocket on_error: {}".format(self.hub_name, error))
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "error", "error": error})
 
         def on_open(ws):
-            self.logger.debug("{}: websocket on_open".format(self.hub_name))
+            self.logger.threaddebug("{}: websocket on_open".format(self.hub_name))
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "status", "status": "Connected"})
             
         def on_close(ws):
-            self.logger.debug("{}: websocket on_close".format(self.hub_name))
+            self.logger.threaddebug("{}: websocket on_close".format(self.hub_name))
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "status", "status": "Disconnected"})
           
         ################################################################################
                     
         # start up the websocket receiver thread
         
-        self.logger.debug("{}: Starting websocket thread".format(self.hub_name))
+        self.logger.threaddebug("{}: Starting websocket thread".format(self.hub_name))
         self.thread = threading.Thread(target=ws_client).start()
 
+        self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "status", "status": "Created"})
 
     def __del__(self):
         self.ws.close()

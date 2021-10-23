@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 ####################
 
+TS_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 import logging
 import indigo
 import json
-import time
+from datetime import datetime, date, time
 
 import requests
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -102,7 +104,11 @@ class Plugin(indigo.PluginBase):
      
 
     def callBack(self, info):
-        self.logger.theaddebug(u"{}: callBack device: {}, type: {}, info: {}".format(info["name"], info["devID"], info["event"], info))
+        if not info:
+            self.logger.warning(u"Camect callBack info is None")
+            return
+            
+        self.logger.threaddebug(u"Camect callBack info: {}".format(info))
         device = indigo.devices[info['devID']]
         
         if info['event'] == 'status':
@@ -111,8 +117,10 @@ class Plugin(indigo.PluginBase):
             return
 
         elif info['event'] == 'error':
-            self.logger.debug(u"{}: Camect Error: {}".format(device.name, info['error']))
-            device.updateStateOnServer(key="status", value=info['error'])
+            self.logger.warning(u"{}: Restarting Device, error: {}".format(device.name, info['error']))
+            indigo.device.enable(device.id, value=False)
+            self.sleep(2)
+            indigo.device.enable(device.id, value=True)
             return
         
         elif info['event'] != 'message':
@@ -128,6 +136,7 @@ class Plugin(indigo.PluginBase):
         
         key_value_list = [
             {'key':'last_event',          'value':info['message']},
+            {'key':'last_event_time',     'value':datetime.now().strftime(TS_FORMAT)},
             {'key':'last_event_type',     'value':event['type']}
         ]
         device.updateStatesOnServer(key_value_list)  
@@ -277,11 +286,9 @@ class Plugin(indigo.PluginBase):
         if not snapshotName or (len(snapshotName) == 0):
             snapshotName = "snapshot-{}".format(camera['id'])
 
-        start = time.time()
         self.logger.debug(u"{}: snapshotCameraCommand, camera: {} ({})".format(camect.name, camera['name'], camera['id']))
         
         image = self.camects[camectID].snapshot_camera(camera['id'], camera['width'], camera['height'])
-        self.logger.debug(u"{}: snapshotCameraCommand fetch completed @ {}".format(camect.name, (time.time() - start)))
         savepath = "{}/{}/{}.jpg".format(indigo.server.getInstallFolderPath(), snapshotPath, snapshotName)
         try:
             f = open(savepath, 'wb')
@@ -289,7 +296,6 @@ class Plugin(indigo.PluginBase):
             f.close
         except Exception as err:
             self.logger.warning(u"Error writing image file: {}, err: {}".format(savepath, err))
-        self.logger.debug(u"{}: snapshotCameraCommand write completed @ {} to {}".format(camect.name, (time.time() - start), savepath))
         
 
     def disableAlertsCommand(self, pluginAction):
