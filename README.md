@@ -1,2 +1,6 @@
 # Indigo-Camect
-Camect interface plugin for the Indigo Home Automation system
+
+Plugin to get alerts and send commands to the Camect Home security camera controller.
+
+
+[Camect Home](https://camect.com)
