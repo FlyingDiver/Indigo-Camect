@@ -82,49 +82,35 @@ class Camect:
     # API Functions
     ################################################################################
 
-    def get_info(self):
+    def _do_request(self, api_call, params=None):
         try:
-            resp = requests.get(self._api_prefix + "GetHomeInfo", verify=False, auth=(self.username, self.password))
+            resp = requests.get(self._api_prefix + api_call, timeout=5.0, verify=False, auth=(self.username, self.password))
         except Exception as err:
-            self.logger.warning(f"{self.hub_name}: Error on GetHomeInfo: {err})")
+            self.logger.warning(f"{self.hub_name}: Error on {api_call}: {err})")
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "error",
-                           "error": "GetHomeInfo request failure"})
+                           "error": f"{api_call} request failure"})
+            return None
+        if resp.status_code != 200:
+            self.logger.warning(f"{self.hub_name}: Error on {api_call} [{resp.status_code}]")
+            self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "error", "error": f"{api_call} Bad Status Code: {resp.status_code}"})
             return None
 
-        resp_json = resp.json()
-        if resp.status_code != 200:
-            self.logger.warning(f"{self.hub_name}: Error on GetHomeInfo [{resp.status_code}]({resp.json()['err_msg']})")
-            self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "error", "error": "Get Info Error"})
-            return None
-        return resp_json
+        return resp
+
+    def get_info(self):
+        return self._do_request("GetHomeInfo").json()
 
     def set_mode(self, mode):
-        resp = requests.get(self._api_prefix + "SetOperationMode", verify=False, auth=(self.username, self.password),
-                            params={"Mode": mode})
-        if resp.status_code != 200:
-            self.logger.warning(f"{self.hub_name}: Failed to set operation mode to '{mode}': [{resp.status_code}]({resp.json()['err_msg']})")
-            self.callback({"name": self.hub_name, "event": "error", "error": "Set Mode Error"})
-            return None
+        self._do_request("SetOperationMode")
         return mode
 
     def list_cameras(self):
-        resp = requests.get(self._api_prefix + "ListCameras", verify=False, auth=(self.username, self.password))
-        resp_json = resp.json()
-        if resp.status_code != 200:
-            self.logger.warning(f"{self.hub_name}: Error on ListCameras [{resp.status_code}]({resp.json()['err_msg']})")
-            self.callback({"name": self.hub_name, "event": "error", "error": "List Cameras Error"})
-            return None
+        resp_json = self._do_request("ListCameras").json()
         return resp_json["camera"]
 
     def snapshot_camera(self, cam_id, width=0, height=0):
-        resp = requests.get(
-            self._api_prefix + "SnapshotCamera", verify=False, auth=(self.username, self.password),
-            params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
-        resp_json = resp.json()
-        if resp.status_code != 200:
-            self.callback({"name": self.hub_name, "event": "error", "error": "Snapshot Error"})
-            self.logger.warning(f"{self.hub_name}: Error on SnapshotCamera [{resp.status_code}]({resp.json()['err_msg']})")
-            return None
+        params = {"CamId": cam_id, "Width": str(width), "Height": str(height)}
+        resp_json = self._do_request("SnapshotCamera", params).json()
         return base64.b64decode(resp_json["jpeg_data"])
 
     def disable_alert(self, cam_ids, reason):
@@ -148,10 +134,6 @@ class Camect:
         for i in range(len(cam_ids)):
             key = f"CamId[{i:d}]"
             params[key] = cam_ids[i]
-        resp = requests.get(self._api_prefix + "EnableAlert", verify=False, auth=(self.username, self.password),
-                            params=params)
-        resp_json = resp.json()
-        if resp.status_code != 200:
-            self.logger.warning(f"{self.hub_name}: Error on EnableAlert [{resp.status_code}]({resp.json()['err_msg']})")
-            return None
+
+        resp_json = self._do_request("EnableAlert", params).json()
         return reason
