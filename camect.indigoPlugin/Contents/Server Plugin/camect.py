@@ -31,7 +31,7 @@ class Camect:
         self._api_prefix = f"https://{address}:{port}/api/"
         self._ws_uri = f"wss://{address}:{port}/api/event_ws"
 
-        self.authorization = "Basic " + base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+        self.authorization = f"Basic {base64.b64encode(f'{self.username}:{self.password}'.encode()).decode()}"
 
         self.logger.threaddebug(
             f"{self.hub_name}: Camect object initialized, hubID = {self.hub_devID}, auth = {self.authorization}, callback = {self.callback}")
@@ -85,7 +85,7 @@ class Camect:
     def _do_request(self, api_call, params=None):
         try:
             resp = requests.get(self._api_prefix + api_call, timeout=5.0, verify=False, auth=(self.username, self.password))
-        except Exception as err:
+        except ConnectionError as err:
             self.logger.warning(f"{self.hub_name}: Error on {api_call}: {err})")
             self.callback({"name": self.hub_name, "devID": self.hub_devID, "event": "error",
                            "error": f"{api_call} request failure"})

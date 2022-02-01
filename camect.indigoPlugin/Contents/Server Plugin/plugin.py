@@ -13,10 +13,7 @@ import requests
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 TS_FORMAT = "%Y-%m-%d %H:%M:%S"
-
-
-################################################################################
-
+RESTART_TIME = 60.0         # seconds to wait when restarting the connection to a Camect
 
 class Plugin(indigo.PluginBase):
 
@@ -120,7 +117,7 @@ class Plugin(indigo.PluginBase):
         elif info['event'] == 'error':
             self.logger.warning(f"{device.name}: Restarting Device, error: {info['error']}")
             indigo.device.enable(device.id, value=False)
-            threading.Timer(5, indigo.device.enable, [device.id], {value: True}).start()
+            threading.Timer(RESTART_TIME, indigo.device.enable, [device.id], {value: True}).start()
             return
 
         elif info['event'] != 'message':
@@ -401,11 +398,7 @@ class Plugin(indigo.PluginBase):
         for devID in self.camect_info:
             device = indigo.devices[devID]
             self.logger.info("{}: Config Data for device {}:\n{}\n{}".format(device.name, device.id,
-                                                                             json.dumps(self.camect_info[devID],
-                                                                                        sort_keys=True, indent=4,
-                                                                                        separators=(',', ': ')),
-                                                                             json.dumps(self.camect_cameras[devID],
-                                                                                        sort_keys=True, indent=4,
-                                                                                        separators=(',', ': '))
-                                                                             ))
+                                json.dumps(self.camect_info[devID],sort_keys=True, indent=4, separators=(',', ': ')),
+                                json.dumps(self.camect_cameras[devID],sort_keys=True, indent=4, separators=(',', ': '))
+                            ))
         return True
