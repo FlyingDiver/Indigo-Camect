@@ -379,7 +379,7 @@ class Plugin(indigo.PluginBase):
         return retList
 
     # doesn't do anything, just needed to force other menus to dynamically refresh
-    def menuChanged(self, valuesDict, typeId, devId):
+    def menuChanged(self, valuesDict, typeId, devId):   # noqa
         return valuesDict
 
     # preload action config dialogs with the first Camect
