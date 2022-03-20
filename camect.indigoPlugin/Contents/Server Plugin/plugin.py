@@ -246,6 +246,26 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"setModeCommand, new mode: {pluginAction.props['mode']}")
         self.camects[camectID].set_mode(pluginAction.props['mode'])
 
+    def ptzCameraCommand(self, pluginAction):
+        camectID = int(pluginAction.props['camectID'])
+        camect = indigo.devices[camectID]
+        cameraID = pluginAction.props['cameraID']
+        self.logger.debug(f"ptzCameraCommand, camectID: {camectID} cameraID: {cameraID}")
+
+        try:
+            camera = self.camect_cameras[camectID][cameraID]
+        except KeyError as err:
+            self.logger.warning(f"{camect.name}: ptzCameraCommand KeyError: {err}")
+            self.logger.debug(f"{camect.name}: ptzCameraCommand, self.camect_cameras: {self.camect_cameras}")
+            return
+
+        if camera['disabled']:
+            self.logger.warning(f"{camect.name}: ptzCameraCommand error, camera '{camera['name']}' is disabled!")
+            return
+
+        self.logger.debug(f"ptzCameraCommand, action: {pluginAction.props['ptz_action']}")
+        self.camects[camectID].ptz(camera['id'], pluginAction.props['ptz_action'])
+
     def snapshotCameraCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
         camect = indigo.devices[camectID]
@@ -372,7 +392,7 @@ class Plugin(indigo.PluginBase):
         valuesDict = pluginProps
         errorMsgDict = indigo.Dict()
         if not pluginProps.get('camectID', None):
-            valuesDict["camectID"] = self.camects.keys()[0]
+            valuesDict["camectID"] = list(self.camects.keys())[0]
         return valuesDict, errorMsgDict
 
     ########################################

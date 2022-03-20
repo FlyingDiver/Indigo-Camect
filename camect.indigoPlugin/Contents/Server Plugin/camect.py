@@ -110,6 +110,11 @@ class Camect:
         resp_json = self._do_request("ListCameras").json()
         return resp_json["camera"]
 
+    def ptz(self, cam_id, action):
+        params = {"CamId": cam_id, "Action": action}
+        self._do_request("PTZ", params)
+        return
+
     def snapshot_camera(self, cam_id, width=0, height=0):
         params = {"CamId": cam_id, "Width": str(width), "Height": str(height)}
         resp = self._do_request("SnapshotCamera", params)

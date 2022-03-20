@@ -22,6 +22,36 @@
             </Field>
        </ConfigUI>
 	</Action>
+    <Action id="ptzCamera">
+		<Name>Camera PTZ</Name>
+		<CallbackMethod>ptzCameraCommand</CallbackMethod>
+        <ConfigUI>
+            <Field id="camectID" type="menu">
+                <Label>Select Camect:</Label>
+                <List class="self" filter="Any" method="pickCamect" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+            <Field id="cameraID" type="menu">
+                <Label>Select Camera:</Label>
+                <List class="self" filter="" method="pickCamera" dynamicReload="true"/>
+                <CallbackMethod>menuChanged</CallbackMethod>
+            </Field>
+            <Field id="ptz_action" type="menu" defaultValue="1">
+                <Label>PTZ Action:</Label>
+                <List>
+                    <Option value="1">Pan Left</Option>
+                    <Option value="2">Pan Right</Option>
+                    <Option value="3">Tilt Up</Option>
+                    <Option value="4">Tilt Down</Option>
+                    <Option value="7">Zoom In</Option>
+                    <Option value="8">Zoom Out</Option>
+                </List>
+            </Field>
+            <Field id="snapshotNamehNote" type="label" fontSize="small" fontColor="darkgray">
+                <Label>Default is snapshot-{cameraID}.</Label>
+            </Field>
+       </ConfigUI>
+	</Action>
 	<Action id="setMode">
 		<Name>Set Mode</Name>
 		<CallbackMethod>setModeCommand</CallbackMethod>
