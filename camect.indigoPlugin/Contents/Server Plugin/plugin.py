@@ -4,7 +4,6 @@
 
 import indigo
 import logging
-import threading
 import json
 from datetime import datetime, date, time
 from camect import Camect
@@ -23,14 +22,10 @@ class Plugin(indigo.PluginBase):
     def __init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs):
         indigo.PluginBase.__init__(self, pluginId, pluginDisplayName, pluginVersion, pluginPrefs)
 
-        pfmt = logging.Formatter('%(asctime)s.%(msecs)03d\t[%(levelname)8s] %(name)20s.%(funcName)-25s%(msg)s',
-                                 datefmt='%Y-%m-%d %H:%M:%S')
+        pfmt = logging.Formatter('%(asctime)s.%(msecs)03d\t[%(levelname)8s] %(name)20s.%(funcName)-25s%(msg)s', datefmt='%Y-%m-%d %H:%M:%S')
         self.plugin_file_handler.setFormatter(pfmt)
 
-        try:
-            self.logLevel = int(pluginPrefs[u"logLevel"])
-        except Exception as err:
-            self.logLevel = logging.INFO
+        self.logLevel = int(pluginPrefs.get("logLevel", logging.INFO))
         self.indigo_log_handler.setLevel(self.logLevel)
         self.logger.debug(f"logLevel = {self.logLevel}")
 
@@ -42,21 +37,21 @@ class Plugin(indigo.PluginBase):
         self.mode_triggers = {}
 
     def startup(self):
-        self.logger.info(u"Starting Camect")
+        self.logger.info("Starting Camect")
 
     def shutdown(self):
-        self.logger.info(u"Stopping Camect")
+        self.logger.info("Stopping Camect")
 
     def deviceStartComm(self, device):
 
         if device.deviceTypeId == "camect":
             self.logger.info(f"{device.name}: Starting Device")
-            self.camects[device.id] = Camect(device.name, device.id,
-                                             device.pluginProps.get('address', ''),
-                                             device.pluginProps.get('port', '443'),
-                                             device.pluginProps.get('username', 'Admin'),
-                                             device.pluginProps.get('password', None),
-                                             self.callBack
+            self.camects[device.id] = Camect(hub_id=device.id,
+                                             address=device.pluginProps.get('address', ''),
+                                             port=device.pluginProps.get('port', '443'),
+                                             username=device.pluginProps.get('username', 'Admin'),
+                                             password=device.pluginProps.get('password', None),
+                                             delegate=self
                                              )
 
             device.updateStateOnServer(key="status", value="None")
@@ -65,7 +60,7 @@ class Plugin(indigo.PluginBase):
             # Make sure it connects.
             info = self.camects[device.id].get_info()
             if not info:
-                self.logger.warning(u"Camect get_info returned no data")
+                self.logger.warning("Camect get_info returned no data")
                 return
 
             self.camect_info[device.id] = info
@@ -84,10 +79,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Known Cameras:")
             for cam in self.camects[device.id].list_cameras():
                 self.camect_cameras[device.id][cam['id']] = cam
-
-            for cam in self.camect_cameras[device.id].values():
                 self.logger.debug(f"{cam['name']}: {cam}")
-
         else:
             self.logger.warning(f"{device.name}: deviceStartComm: Invalid device type: {device.deviceTypeId}")
 
@@ -101,39 +93,30 @@ class Plugin(indigo.PluginBase):
         else:
             self.logger.warning(f"{device.name}: deviceStopComm: Invalid device type: {device.deviceTypeId}")
 
-    def callBack(self, info):
-        if not info:
-            self.logger.warning("Camect callBack info is None")
-            return
+    def hub_status(self, dev_id=None, status=None):
+        device = indigo.devices[dev_id]
+        self.logger.debug(f"{device.name}: Camect Status: {status}")
+        device.updateStateOnServer(key="status", value=status)
+        device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
 
-        self.logger.threaddebug(f"Camect callBack info: {info}")
-        device = indigo.devices[info['devID']]
+    def hub_error(self, dev_id=None, error=None):
+        device = indigo.devices[dev_id]
+        self.logger.warning(f"{device.name}: Device error: {error}")
+        device.updateStateOnServer(key="status", value="Error")
+        device.updateStateImageOnServer(indigo.kStateImageSel.SensorTripped)
 
-        if info['event'] == 'status':
-            self.logger.debug(f"{device.name}: Camect Status: {info['status']}")
-            device.updateStateOnServer(key="status", value=info['status'])
-            return
-
-        elif info['event'] == 'error':
-            self.logger.warning(f"{device.name}: Restarting Device, error: {info['error']}")
-            indigo.device.enable(device.id, value=False)
-            threading.Timer(RESTART_TIME, indigo.device.enable, [device.id], {value: True}).start()
-            return
-
-        elif info['event'] != 'message':
-            self.logger.warning(f"{device.name}: Unknown Camect callback event: {info['event']}")
-            return
-
+    def hub_message(self, dev_id=None, message=None):
+        device = indigo.devices[dev_id]
         try:
-            event = json.loads(info['message'])
+            event = json.loads(message)
         except Exception as err:
-            self.logger.error(f"{device.name}: Invalid JSON '{info['message']}': {err}")
+            self.logger.error(f"{device.name}: Invalid JSON '{message}': {err}")
             return
 
         self.logger.debug(f"{device.name}: Camect Event: {event}")
 
         key_value_list = [
-            {'key': 'last_event', 'value': info['message']},
+            {'key': 'last_event', 'value': message},
             {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
             {'key': 'last_event_type', 'value': event['type']}
         ]
@@ -151,8 +134,7 @@ class Plugin(indigo.PluginBase):
             ]
             device.updateStatesOnServer(key_value_list)
 
-            self.logger.debug(
-                f"Alert event: camectID: {device.id}, cam_id: {event['cam_id']}, detected_obj = {event['detected_obj']}")
+            self.logger.debug(f"Alert event: camectID: {device.id}, cam_id: {event['cam_id']}, detected_obj = {event['detected_obj']}")
             for triggerID in self.alert_triggers:
                 trigger = self.alert_triggers[triggerID]
                 self.logger.threaddebug(
@@ -289,6 +271,9 @@ class Plugin(indigo.PluginBase):
         self.logger.debug(f"{camect.name}: snapshotCameraCommand, camera: {camera['name']} ({camera['id']})")
 
         image = self.camects[camectID].snapshot_camera(camera['id'], camera['width'], camera['height'])
+        if not image:
+            return
+
         save_path = f"{indigo.server.getInstallFolderPath()}/{snapshotPath}/{snapshotName}.jpg"
         try:
             f = open(save_path, 'wb')
