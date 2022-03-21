@@ -19,16 +19,17 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 class Camect:
     ########################################
 
-    def __init__(self, hub_id=None, address=None, port=None, username=None, password=None, delegate=None):
+    def __init__(self, *, hub_id, address, port, username, password, delegate):
         self.logger = logging.getLogger("Plugin.Camect")
 
         self.hub_id = hub_id
         self.delegate = delegate
+        self.ready = False
         self.thread_start_delay = 0.0
 
         self._api_prefix = f"https://{address}:{port}/api/"
         self._ws_uri = f"wss://{address}:{port}/api/event_ws"
-        self.auth_header = {'Authorization': f"Basic {base64.b64encode(f'{username}:{password}'.encode()).decode()}"}
+        self.authorization = f"Basic {base64.b64encode(f'{username}:{password}'.encode()).decode()}"
 
         ################################################################################
         # Minimal Websocket Client
@@ -37,7 +38,7 @@ class Camect:
         def ws_client():
             self.logger.debug(f"Device {self.hub_id} connecting to '{self._ws_uri}'")
 
-            self.ws = websocket.WebSocketApp(self._ws_uri, header=self.auth_header,
+            self.ws = websocket.WebSocketApp(self._ws_uri, header={'Authorization': self.authorization},
                                              on_message=on_message,
                                              on_error=on_error,
                                              on_close=on_close,
@@ -47,6 +48,7 @@ class Camect:
 
         def on_open(ws):
             self.logger.debug(f"{self.hub_id}: websocket on_open")
+            self.ready = True
             self.delegate.hub_status(dev_id=self.hub_id, status="Connected")
 
         def on_message(ws, message):
@@ -55,10 +57,12 @@ class Camect:
 
         def on_close(ws):
             self.logger.debug(f"{self.hub_id}: websocket on_close")
+            self.ready = False
             self.delegate.hub_status(dev_id=self.hub_id, status="Closed")
 
         def on_error(ws, error):
             self.logger.debug(f"{self.hub_id}: websocket on_error: {error}")
+            self.ready = False
             self.delegate.hub_error(dev_id=self.hub_id, error=error)
 
             if self.thread.is_alive():
@@ -88,13 +92,18 @@ class Camect:
     ################################################################################
 
     def _do_request(self, api_call, params=None):
+        self.logger.debug(f"{self.hub_id}: _do_request api_call = {api_call}, params = {params}")
         try:
-            resp = requests.get(self._api_prefix + api_call, timeout=5.0, verify=False, headers=self.auth_header)
+            resp = requests.get(self._api_prefix + api_call, timeout=10.0, verify=False, headers={'Authorization': self.authorization}, params=params)
         except ConnectionError as err:
             self.delegate.hub_error(dev_id=self.hub_id, error=f"{api_call} request failure")
             return None
+        except requests.exceptions.Timeout as err:
+            self.delegate.hub_error(dev_id=self.hub_id, error=f"{api_call} timeout")
+            return None
         if resp.status_code != 200:
-            self.delegate.hub_error(dev_id=self.hub_id, error=f"{api_call} Bad Status Code: {resp.status_code}")
+            self.delegate.hub_error(dev_id=self.hub_id, error=f"{api_call} Error, status code: {resp.status_code}")
+            self.logger.debug(f"{self.hub_id}: _do_request resp = {resp.text}")
             return None
 
         return resp

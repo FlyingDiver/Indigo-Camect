@@ -46,16 +46,18 @@ class Plugin(indigo.PluginBase):
 
         if device.deviceTypeId == "camect":
             self.logger.info(f"{device.name}: Starting Device")
+            device.updateStateOnServer(key="status", value="None")
+            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+
             self.camects[device.id] = Camect(hub_id=device.id,
                                              address=device.pluginProps.get('address', ''),
                                              port=device.pluginProps.get('port', '443'),
-                                             username=device.pluginProps.get('username', 'Admin'),
-                                             password=device.pluginProps.get('password', None),
+                                             username=device.pluginProps.get('username', 'Indigo'),
+                                             password=device.pluginProps.get('password', 'Indigo'),
                                              delegate=self
                                              )
 
-            device.updateStateOnServer(key="status", value="None")
-            device.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
+            self.sleep(2)   # wait for connection
 
             # Make sure it connects.
             info = self.camects[device.id].get_info()
@@ -248,9 +250,8 @@ class Plugin(indigo.PluginBase):
 
     def ptzCameraCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
-        camect = indigo.devices[camectID]
         cameraID = pluginAction.props['cameraID']
-        self.logger.debug(f"ptzCameraCommand, camectID: {camectID} cameraID: {cameraID}")
+        camect = indigo.devices[camectID]
 
         try:
             camera = self.camect_cameras[camectID][cameraID]
@@ -268,9 +269,8 @@ class Plugin(indigo.PluginBase):
 
     def snapshotCameraCommand(self, pluginAction):
         camectID = int(pluginAction.props['camectID'])
-        camect = indigo.devices[camectID]
         cameraID = pluginAction.props['cameraID']
-        self.logger.debug(f"snapshotCameraCommand, camectID: {camectID} cameraID: {cameraID}")
+        camect = indigo.devices[camectID]
 
         try:
             camera = self.camect_cameras[camectID][cameraID]
