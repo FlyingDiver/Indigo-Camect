@@ -69,9 +69,7 @@ class Camect:
                 self.logger.debug(f"{self.hub_id}: websocket thread is still alive!")
 
             # try to recover from the error
-            self.thread_start_delay += 10.0    # wait 10 more seconds, max 1 minute
-            if self.thread_start_delay > 60.0:
-                self.thread_start_delay = 60.0
+            self.thread_start_delay += 10.0 if self.thread_start_delay < 50.0 else 60.0   # wait 10 more seconds, max 1 minute
 
             self.thread = threading.Thread(target=ws_client)
             self.logger.debug(f"{self.hub_id}: restarting websocket thread in {self.thread_start_delay} seconds")
@@ -95,7 +93,7 @@ class Camect:
         self.logger.debug(f"{self.hub_id}: _do_request api_call = {api_call}, params = {params}")
         try:
             resp = requests.get(self._api_prefix + api_call, timeout=10.0, verify=False, headers={'Authorization': self.authorization}, params=params)
-        except ConnectionError as err:
+        except requests.exceptions.ConnectionError as err:
             self.delegate.hub_error(dev_id=self.hub_id, error=f"{api_call} request failure")
             return None
         except requests.exceptions.Timeout as err:
