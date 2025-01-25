@@ -77,7 +77,7 @@ class Camect:
 
         ################################################################################
 
-        # start up the websocket receiver thread
+        # start up the websocket.old receiver thread
 
         self.thread = threading.Thread(target=ws_client).start()
         self.delegate.hub_status(dev_id=self.hub_id, status="Started")

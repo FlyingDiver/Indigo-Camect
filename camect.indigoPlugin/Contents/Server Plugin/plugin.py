@@ -36,6 +36,10 @@ class Plugin(indigo.PluginBase):
         self.camera_triggers = {}
         self.mode_triggers = {}
 
+        self.last_event = None
+        self.last_event_time = datetime.now()
+        self.last_event_delay = 5.0
+
     def startup(self):
         self.logger.info("Starting Camect")
 
@@ -66,7 +70,7 @@ class Plugin(indigo.PluginBase):
                 return
 
             self.camect_info[device.id] = info
-            self.logger.debug(f"Camect info:\n{info}")
+            self.logger.debug(f"Hub info:\n{json.dumps(info, sort_keys=True, indent=4)}")
 
             key_value_list = [
                 {'key': 'name', 'value': info['name']},
@@ -81,7 +85,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("Known Cameras:")
             for cam in self.camects[device.id].list_cameras():
                 self.camect_cameras[device.id][cam['id']] = cam
-                self.logger.debug(f"{cam['name']}: {cam}")
+                self.logger.debug(f"Camera {cam['name']}:\n{json.dumps(cam, sort_keys=True, indent=4)}")
         else:
             self.logger.warning(f"{device.name}: deviceStartComm: Invalid device type: {device.deviceTypeId}")
 
@@ -115,28 +119,37 @@ class Plugin(indigo.PluginBase):
             self.logger.error(f"{device.name}: Invalid JSON '{message}': {err}")
             return
 
-        self.logger.debug(f"{device.name}: Camect Event: {event}")
-
-        key_value_list = [
-            {'key': 'last_event', 'value': message},
-            {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
-            {'key': 'last_event_type', 'value': event['type']}
-        ]
-        device.updateStatesOnServer(key_value_list)
+        self.logger.debug(f"{device.name}: {event['type']} Event:\n{json.dumps(event, sort_keys=True, indent=4)}")
 
         if event['type'] == 'alert':
-            self.logger.info(f"{device.name}: {event['desc']}")
+            self.logger.debug(f"{device.name}: {event['desc']}")
+
+            if (datetime.now() - self.last_event_time).total_seconds() < self.last_event_delay and \
+                event['type'] == self.last_event['type'] and \
+                event['cam_id'] == self.last_event['cam_id'] and \
+                event['desc'] == self.last_event['desc'] and \
+                event['detected_obj'] == self.last_event['detected_obj']:
+                self.logger.debug(f"{device.name}: Duplicate event, skipping")
+                return
+
+            self.logger.debug(f"{device.name}: Processing event for triggers")
+
+            self.last_event = event
+            self.last_event_time = datetime.now()
 
             key_value_list = [
-                {'key': 'last_event_desc', 'value': event['desc']},
-                {'key': 'last_event_url', 'value': event['url']},
+                {'key': 'last_event', 'value': message},
+                {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
+                {'key': 'last_event_type', 'value': event['type']},
+                {'key': 'mode', 'value': ""},
                 {'key': 'last_event_cam_id', 'value': event['cam_id']},
                 {'key': 'last_event_cam_name', 'value': event['cam_name']},
+                {'key': 'last_event_desc', 'value': event['desc']},
+                {'key': 'last_event_url', 'value': event['url']},
                 {'key': 'last_event_detected', 'value': ' '.join(event['detected_obj'])}
             ]
             device.updateStatesOnServer(key_value_list)
 
-            self.logger.debug(f"Alert event: camectID: {device.id}, cam_id: {event['cam_id']}, detected_obj = {event['detected_obj']}")
             for triggerID in self.alert_triggers:
                 trigger = self.alert_triggers[triggerID]
                 self.logger.threaddebug(
@@ -165,20 +178,33 @@ class Plugin(indigo.PluginBase):
 
         elif event['type'] == 'alert_enabled' or event['type'] == 'alert_disabled':
             key_value_list = [
+                {'key': 'last_event', 'value': message},
+                {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
+                {'key': 'last_event_type', 'value': event['type']},
+                {'key': 'mode', 'value': ""},
                 {'key': 'last_event_cam_id', 'value': event['cam_id']},
-                {'key': 'last_event_cam_name', 'value': event['cam_name']}
+                {'key': 'last_event_cam_name', 'value': event['cam_name']},
+                {'key': 'last_event_desc', 'value': ""},
+                {'key': 'last_event_url', 'value': ""},
+                {'key': 'last_event_detected', 'value': ""}
             ]
             device.updateStatesOnServer(key_value_list)
 
         elif event['type'] == 'camera_offline' or event['type'] == 'camera_online':
             key_value_list = [
+                {'key': 'last_event', 'value': message},
+                {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
+                {'key': 'last_event_type', 'value': event['type']},
+                {'key': 'mode', 'value': ""},
                 {'key': 'last_event_cam_id', 'value': event['cam_id']},
-                {'key': 'last_event_cam_name', 'value': event['cam_name']}
+                {'key': 'last_event_cam_name', 'value': event['cam_name']},
+                {'key': 'last_event_desc', 'value': ""},
+                {'key': 'last_event_url', 'value': ""},
+                {'key': 'last_event_detected', 'value': ""}
             ]
             device.updateStatesOnServer(key_value_list)
 
-            self.logger.debug(f"Camera event: camectID: {device.id}, type: {event['type']}")
-            for triggerID, trigger in self.camera_triggers.iteritems():
+            for triggerID, trigger in self.camera_triggers.items():
                 self.logger.threaddebug(
                     f"Checking Camera trigger {triggerID}: camectID: {trigger.pluginProps['camectID']}")
 
@@ -198,18 +224,28 @@ class Plugin(indigo.PluginBase):
 
         elif event['type'] == 'mode':
             key_value_list = [
-                {'key': 'mode', 'value': event['desc']}
+                {'key': 'last_event', 'value': message},
+                {'key': 'last_event_time', 'value': datetime.now().strftime(TS_FORMAT)},
+                {'key': 'last_event_type', 'value': event['type']},
+                {'key': 'mode', 'value': event['desc']},
+                {'key': 'last_event_cam_id', 'value': ""},
+                {'key': 'last_event_cam_name', 'value': ""},
+                {'key': 'last_event_desc', 'value': ""},
+                {'key': 'last_event_url', 'value': ""},
+                {'key': 'last_event_detected', 'value': ""}
             ]
             device.updateStatesOnServer(key_value_list)
 
-            self.logger.debug(f"Mode event: camectID: {device.id}, mode: {event['desc']}")
-            for triggerID, trigger in self.mode_triggers.iteritems():
+            for triggerID, trigger in self.mode_triggers.items():
                 self.logger.threaddebug(
                     f"Checking Mode trigger {triggerID}: camectID: {trigger.pluginProps['camectID']}")
 
                 if (trigger.pluginProps["camectID"] == "-1") or (trigger.pluginProps["camectID"] == str(device.id)):
                     self.logger.debug(f"Executing Mode trigger {triggerID}")
                     indigo.trigger.execute(trigger)
+
+        else:
+            self.logger.warning(f"Unknown event type: {event['type']}")
 
     ########################################
     # Trigger (Event) handling 

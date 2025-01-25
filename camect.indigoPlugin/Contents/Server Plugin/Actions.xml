@@ -17,7 +17,7 @@
             <Field id="snapshotName" type="textfield" defaultValue="">
                 <Label>Snapshot filename:</Label>
             </Field>
-            <Field id="snapshotNamehNote" type="label" fontSize="small" fontColor="darkgray">
+            <Field id="snapshotNameNote" type="label" fontSize="small" fontColor="darkgray">
                 <Label>Default is snapshot-{cameraID}.</Label>
             </Field>
        </ConfigUI>
